@@ -1,7 +1,14 @@
-const { DataTypes } = require('sequelize');
-module.exports = (sequelize) => {
+import { DataTypes } from 'sequelize';
+
+const InvoiceModel = (sequelize) => {
   const Invoice = sequelize.define('Invoice', {
     number:      { type: DataTypes.INTEGER, allowNull: false, autoIncrement: true, primaryKey: true },
+    id: {
+      type: DataTypes.VIRTUAL,
+      get() {
+        return this.getDataValue('number');
+      }
+    },
     invoiceNumber: { type: DataTypes.STRING, allowNull: false },
     type:        { type: DataTypes.STRING,    allowNull: false },
     totalAmount: { type: DataTypes.DECIMAL(10,2), allowNull: false, defaultValue: 0 },
@@ -28,3 +35,5 @@ module.exports = (sequelize) => {
   });
   return Invoice;
 };
+
+export default InvoiceModel;

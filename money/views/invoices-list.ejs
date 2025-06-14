@@ -1,52 +1,62 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Invoices Admin</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <title>Invoices Admin - Sakai Theme</title>
+  <link href="/assets/layout/layout.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css?family=Lato:400,700&display=swap" rel="stylesheet">
 </head>
-<body class="bg-light">
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
-  <div class="container-fluid">
-    <a class="navbar-brand" href="/admin/invoices">Admin Panel</a>
-    <div class="collapse navbar-collapse">
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        <li class="nav-item">
-          <a class="nav-link active" href="/admin/invoices">Invoices</a>
-        </li>
-      </ul>
+<body>
+  <div class="layout-wrapper">
+    <div class="layout-topbar">
+      <div class="layout-topbar-logo-container">
+        <a class="layout-topbar-logo" href="/admin/invoices">
+          <svg viewBox="0 0 54 40" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:2rem;vertical-align:middle;margin-right:0.5rem;"><path fill-rule="evenodd" clip-rule="evenodd" d="M17.1637 19.2467C17.1566 19.4033 17.1529 19.561 17.1529 19.7194C17.1529 25.3503 21.7203 29.915 27.3546 29.915C32.9887 29.915 37.5561 25.3503 37.5561 19.7194C37.5561 19.5572 37.5524 19.3959 37.5449 19.2355C38.5617 19.0801 39.5759 18.9013 40.5867 18.6994L40.6926 18.6782C40.7191 19.0218 40.7326 19.369 40.7326 19.7194C40.7326 27.1036 34.743 33.0896 27.3546 33.0896C19.966 33.0896 13.9765 27.1036 13.9765 19.7194C13.9765 19.374 13.9896 19.0316 14.0154 18.6927L14.0486 18.6994C15.0837 18.9062 16.1223 19.0886 17.1637 19.2467ZM33.3284 11.4538C31.6493 10.2396 29.5855 9.52381 27.3546 9.52381C25.1195 9.52381 23.0524 10.2421 21.3717 11.4603C20.0078 11.3232 18.6475 11.1387 17.2933 10.907C19.7453 8.11308 23.3438 6.34921 27.3546 6.34921C31.36 6.34921 34.9543 8.10844 37.4061 10.896C36.0521 11.1292 34.692 11.3152 33.3284 11.4538ZM43.826 18.0518C43.881 18.6003 43.9091 19.1566 43.9091 19.7194C43.9091 28.8568 36.4973 36.2642 27.3546 36.2642C18.2117 36.2642 10.8 28.8568 10.8 19.7194C10.8 19.1615 10.8276 18.61 10.8816 18.0663L7.75383 17.4411C7.66775 18.1886 7.62354 18.9488 7.62354 19.7194C7.62354 30.6102 16.4574 39.4388 27.3546 39.4388C38.2517 39.4388 47.0855 30.6102 47.0855 19.7194C47.0855 18.9439 47.0407 18.1789 46.9536 17.4267L43.826 18.0518ZM44.2613 9.54743L40.9084 10.2176C37.9134 5.95821 32.9593 3.1746 27.3546 3.1746C21.7442 3.1746 16.7856 5.96385 13.7915 10.2305L10.4399 9.56057C13.892 3.83178 20.1756 0 27.3546 0C34.5281 0 40.8075 3.82591 44.2613 9.54743Z" fill="var(--primary-color)"/></svg>
+          <span>SAKAI</span>
+        </a>
+      </div>
+    </div>
+    <div class="layout-main-container">
+      <div class="layout-main">
+        <h1>Invoices</h1>
+        <a href="/admin/invoices/create" class="p-button p-button-success mb-3" style="margin-bottom:1rem;display:inline-block;">Create New Invoice</a>
+        <div class="card">
+          <table class="p-datatable p-datatable-striped" style="width:100%;">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Number</th>
+                <th>Invoice Number</th>
+                <th>Type</th>
+                <th>Date</th>
+                <th>Total Amount</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% invoices.forEach(function(inv) { %>
+                <tr>
+                  <td><%= inv.number %></td>
+                  <td><%= inv.number %></td>
+                  <td><%= inv.invoiceNumber %></td>
+                  <td><%= inv.type %></td>
+                  <td><%= inv.date %></td>
+                  <td><%= inv.totalAmount %></td>
+                  <td>
+                    <a href="/admin/invoices/edit/<%= inv.number %>" class="p-button p-button-warning">Edit</a>
+                    <form action="/admin/invoices/delete/<%= inv.number %>" method="post" style="display:inline">
+                      <button type="submit" class="p-button p-button-danger">Delete</button>
+                    </form>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="layout-footer">
+        SAKAI by <a href="https://primeng.org" target="_blank" rel="noopener noreferrer" class="text-primary font-bold hover:underline">PrimeNG</a>
+      </div>
     </div>
   </div>
-</nav>
-<div class="container">
-  <h1 class="mb-4">Invoices</h1>
-  <a href="/admin/invoices/create" class="btn btn-success mb-3">Create New Invoice</a>
-  <table class="table table-bordered table-striped bg-white">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Number</th>
-        <th>Date</th>
-        <th>Total Amount</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% invoices.forEach(function(inv) { %>
-        <tr>
-          <td><%= inv.id %></td>
-          <td><%= inv.number %></td>
-          <td><%= inv.date %></td>
-          <td><%= inv.totalAmount %></td>
-          <td>
-            <a href="/admin/invoices/edit/<%= inv.id %>" class="btn btn-sm btn-primary">Edit</a>
-            <form action="/admin/invoices/delete/<%= inv.id %>" method="post" style="display:inline;">
-              <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this invoice?')">Delete</button>
-            </form>
-          </td>
-        </tr>
-      <% }) %>
-    </tbody>
-  </table>
-</div>
 </body>
 </html>

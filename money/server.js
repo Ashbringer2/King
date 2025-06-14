@@ -1,58 +1,102 @@
 // server.js
-const express = require('express');
-const path = require('path');
-const cors = require('cors');
+import express from 'express';
+import path from 'path';
+import cors from 'cors';
+import { sequelize, Invoice, Transaction } from './models/index.js';
+import AdminJS from 'adminjs';
+import AdminJSExpress from '@adminjs/express';
+import AdminJSSequelize from '@adminjs/sequelize';
 
-(async () => {
-  try {
-    const modelsNS = await import('./models/index.js');
-    const { sequelize, Invoice, Transaction } = modelsNS.default;
+const app = express();
+app.use(cors()); // Enable CORS for all routes and methods
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-    const app = express();
-    app.use(cors()); // Enable CORS for all routes and methods
-    app.use(express.json());
-    app.use(express.urlencoded({ extended: true }));
+// Set EJS as the view engine (if you still need it for other routes)
+app.set('view engine', 'ejs');
+app.set('views', path.join(path.resolve(), 'views'));
 
-    // Set EJS as the view engine
-    app.set('view engine', 'ejs');
-    app.set('views', path.join(__dirname, 'views'));
+// --- AdminJS Setup ---
+AdminJS.registerAdapter(AdminJSSequelize);
+const adminJs = new AdminJS({
+  databases: [sequelize],
+  rootPath: '/admin',
+  resources: [
+    {
+      resource: Invoice,
+      options: {
+        id: 'Invoices',
+        idProperty: 'number',
+        properties: {
+          number: { isId: true },
+        },
+        navigation: null,
+      }
+    },
+    {
+      resource: Transaction,
+      options: {
+        id: 'Transactions',
+        idProperty: 'id',
+        properties: {
+          id: {isId: true}
+        },
+        navigation: null,
+      }
+    }
+  ],
+  branding: {
+    companyName: 'Sakai Admin',
+    softwareBrothers: false,
+    logo: false
+  }
+});
+const adminRouter = AdminJSExpress.buildRouter(adminJs);
+app.use(adminJs.options.rootPath, adminRouter);
+// --- End AdminJS Setup ---
 
-    // Admin panel: List invoices
-    app.get('/admin/invoices', async (req, res) => {
-      const invoices = await Invoice.findAll();
-      res.render('invoices-list', { invoices });
-    });
-
-    // Admin panel: Edit invoice form
-    app.get('/admin/invoices/edit/:id', async (req, res) => {
-      const invoice = await Invoice.findByPk(req.params.id);
-      res.render('invoices-edit', { invoice });
-    });
-
-    // Admin panel: Update invoice
-    app.post('/admin/invoices/edit/:id', async (req, res) => {
-      const { number, date, totalAmount } = req.body;
-      await Invoice.update({ number, date, totalAmount }, { where: { id: req.params.id } });
-      res.redirect('/admin/invoices');
-    });
-
-    // Admin panel: Delete invoice
-    app.post('/admin/invoices/delete/:id', async (req, res) => {
-      await Invoice.destroy({ where: { id: req.params.id } });
-      res.redirect('/admin/invoices');
-    });
-
-    // Admin panel: Create invoice form
-    app.get('/admin/invoices/create', (req, res) => {
-      res.render('invoices-create');
-    });
-
-    // Admin panel: Create invoice
-    app.post('/admin/invoices/create', async (req, res) => {
-      const { number, date, totalAmount } = req.body;
-      await Invoice.create({ number, date, totalAmount });
-      res.redirect('/admin/invoices');
-    });
+    // // Admin panel: List invoices
+    // app.get('/admin/invoices', async (req, res) => {
+    //   const invoices = await Invoice.findAll();
+    //   res.render('invoices-list', { invoices });
+    // });
+    // // Admin panel: Edit invoice form
+    // app.get('/admin/invoices/edit/:id', async (req, res) => {
+    //   const invoice = await Invoice.findByPk(req.params.id);
+    //   res.render('invoices-edit', { invoice });
+    // });
+    // // Admin panel: Update invoice
+    // app.post('/admin/invoices/edit/:id', async (req, res) => {
+    //   const { number, date, totalAmount, invoiceNumber, type } = req.body;
+    //   await Invoice.update({ number, date, totalAmount, invoiceNumber, type }, { where: { id: req.params.id } });
+    //   res.redirect('/admin/invoices');
+    // });
+    // // Admin panel: Delete invoice
+    // app.post('/admin/invoices/delete/:id', async (req, res) => {
+    //   try {
+    //     console.log(`Received ID parameter: ${req.params.id}`);
+    //     if (!req.params.id) {
+    //       console.error('ID parameter is missing or undefined.');
+    //       return res.status(400).send('ID parameter is required.');
+    //     }
+    //     const result = await Invoice.destroy({ where: { number: req.params.id } });
+    //     console.log(`Result of delete operation:`, result);
+    //     res.redirect('/admin/invoices');
+    //   } catch (error) {
+    //     console.error(`Error deleting invoice with ID ${req.params.id}:`, error);
+    //     res.status(400).send('Error deleting invoice');
+    //   }
+    // });
+    // // Admin panel: Create invoice form
+    // app.get('/admin/invoices/create', (req, res) => {
+    //   res.render('invoices-create');
+    // });
+    // // Admin panel: Create invoice
+    // app.post('/admin/invoices/create', async (req, res) => {
+    //   const { number, date, totalAmount, invoiceNumber, type } = req.body;
+    //   await Invoice.create({ number, date, totalAmount, invoiceNumber, type });
+    //   res.redirect('/admin/invoices');
+    // });
 
     // API routes (keep for frontend)
     const apiRouter = express.Router();
@@ -60,30 +104,18 @@ const cors = require('cors');
     // GET /api/invoices - list all invoices
     apiRouter.get('/invoices', async (req, res) => {
       try {
-        // Support pagination and filtering
-        const page = parseInt(req.query.page) || 1;
-        const pageSize = parseInt(req.query.pageSize) || 10;
-        const offset = (page - 1) * pageSize;
-        const where = {};
-        if (req.query.type) where.type = req.query.type;
-        if (req.query.invoiceNumber) where.invoiceNumber = req.query.invoiceNumber;
-        const { count, rows: all } = await Invoice.findAndCountAll({ where, offset, limit: pageSize, order: [['date', 'DESC']] });
-        // Format date as dd.mm.yyyy hh:mm
-        const formatted = all.map(inv => {
-          let dateObj = new Date(inv.date);
-          const pad = n => n.toString().padStart(2, '0');
-          let formattedDate = '';
-          if (!isNaN(dateObj.getTime())) {
-            formattedDate = `${pad(dateObj.getDate())}.${pad(dateObj.getMonth()+1)}.${dateObj.getFullYear()} ${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}`;
-          }
-          return {
-            ...inv.toJSON(),
-            date: formattedDate
-          };
-        });
-        res.json({ total: count, data: formatted });
-      } catch (err) {
-        res.status(500).json({ error: 'Failed to fetch invoices' });
+        const invoices = await Invoice.findAll();
+        const formattedInvoices = invoices.map(inv => ({
+          number: inv.number,
+          invoiceNumber: inv.invoiceNumber,
+          type: inv.type,
+          vlera: new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(inv.totalAmount),
+          date: new Date(inv.date).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+        }));
+        res.status(200).send({ data: formattedInvoices });
+      } catch (error) {
+        console.error('Error fetching invoices:', error);
+        res.status(500).send({ error: 'Internal server error.' });
       }
     });
 
@@ -91,8 +123,12 @@ const cors = require('cors');
     apiRouter.post('/invoices', async (req, res) => {
       try {
         let { invoiceNumber, type, totalAmount } = req.body;
-        if (!invoiceNumber || !type || totalAmount === undefined || totalAmount === null || totalAmount === '') {
-          return res.status(400).json({ error: 'invoiceNumber, type, and totalAmount are required.' });
+        if (!invoiceNumber || !type) {
+          console.error('Validation failed: invoiceNumber and type are required.');
+          return res.status(400).send('Invoice Number and Type are required.');
+        }
+        if (totalAmount === undefined || totalAmount === null || totalAmount === '') {
+          return res.status(400).json({ error: 'totalAmount is required.' });
         }
         // Save with current datetime
         const now = new Date();
@@ -142,16 +178,29 @@ const cors = require('cors');
 
     // DELETE /api/invoices/:id - delete an invoice
     apiRouter.delete('/invoices/:id', async (req, res) => {
+      const { id } = req.params;
+      const invoiceNumber = Number(id);
+      console.log(`Received DELETE request for invoice number: ${invoiceNumber}`);
+
       try {
-        const id = req.params.id;
-        const deleted = await Invoice.destroy({ where: { id } });
+        // Check if invoice exists
+        const invoice = await Invoice.findOne({ where: { number: invoiceNumber } });
+        if (!invoice) {
+          console.log(`Invoice with number ${invoiceNumber} not found.`);
+          return res.status(404).send({ error: 'Invoice not found.' });
+        }
+        // Manually delete related transactions before deleting the invoice
+        await Transaction.destroy({ where: { invoiceId: invoiceNumber } });
+        const deleted = await Invoice.destroy({ where: { number: invoiceNumber } });
         if (deleted) {
-          res.json({ success: true });
+          console.log(`Invoice with number ${invoiceNumber} deleted successfully.`);
+          res.status(200).send({ message: 'Invoice deleted successfully.' });
         } else {
-          res.status(404).json({ error: 'Invoice not found.' });
+          res.status(500).send({ error: 'Failed to delete invoice.' });
         }
       } catch (err) {
-        res.status(400).json({ error: err.message });
+        console.error(`[DELETE /api/invoices/:id] Error:`, err);
+        res.status(500).send({ error: 'An unexpected error occurred while deleting the invoice.' });
       }
     });
 
@@ -182,12 +231,11 @@ const cors = require('cors');
     app.use('/api', apiRouter);
 
     // Sync database and start server
-    await sequelize.sync();
-    app.listen(3000, () => {
-      console.log('⚡️ Admin panel ready: http://localhost:3000/admin/invoices');
-      console.log('⚡️ API ready: http://localhost:3000/api/invoices');
+    sequelize.sync().then(() => {
+      app.listen(3000, () => {
+        console.log('⚡️ AdminJS ready: http://localhost:3000/admin');
+        console.log('⚡️ API ready: http://localhost:3000/api/invoices');
+      });
+    }).catch((err) => {
+      console.error('❌ Failed to start server:', err);
     });
-  } catch (err) {
-    console.error('❌ Failed to start server:', err);
-  }
-})();

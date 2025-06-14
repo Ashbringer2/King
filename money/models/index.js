@@ -1,20 +1,18 @@
 // models/index.js
-const { Sequelize, DataTypes } = require('sequelize');
+import { Sequelize, DataTypes } from 'sequelize';
+import InvoiceModel from './Invoice.js';
+import TransactionModel from './Transaction.js';
 
-// Use SQLite: storage = where the .sqlite file will live
 const sequelize = new Sequelize({
   dialect:  'sqlite',
   storage:  './database.sqlite',
-  logging:  false,             // turn off SQL logging if you like
+  logging:  console.log, // Enabled Sequelize logging
 });
 
-// Import models
-const Invoice     = require('./Invoice.js')(sequelize, DataTypes);
-const Transaction = require('./Transaction.js')(sequelize, DataTypes);
+const Invoice = InvoiceModel(sequelize, DataTypes);
+const Transaction = TransactionModel(sequelize, DataTypes);
 
-// Associations
-Invoice.hasMany(Transaction,   { foreignKey: 'invoiceId' });
-Transaction.belongsTo(Invoice, { foreignKey: 'invoiceId' });
+Invoice.hasMany(Transaction,   { foreignKey: 'invoiceId', onDelete: 'CASCADE' });
+Transaction.belongsTo(Invoice, { foreignKey: 'invoiceId', onDelete: 'CASCADE' });
 
-// Export for server.js
-module.exports = { sequelize, Invoice, Transaction };
+export { sequelize, Invoice, Transaction };
