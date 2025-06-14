@@ -26,11 +26,80 @@ const adminJs = new AdminJS({
       resource: Invoice,
       options: {
         id: 'Invoices',
-        idProperty: 'number',
+        idProperty: 'number', // Crucial: AdminJS uses this for actions
         properties: {
-          number: { isId: true },
+          number: { // This is the actual Primary Key
+            isId: true,
+            isVisible: { list: false, show: true, edit: true, filter: true } // Hidden from list, visible elsewhere
+          },
+          displayRowNumber: { // New virtual property for sequential numbering in list
+            type: 'number',
+            label: 'Number', // Column header in AdminJS
+            isVisible: { list: true, show: false, edit: false, filter: false }
+          },
+          invoiceNumber: { // Assuming you might want to see this somewhere
+            isVisible: { list: false, show: true, edit: true, filter: true } // Not in screenshot list, but often useful
+          },
+          type: {
+            isVisible: { list: true, show: true, edit: true, filter: true }
+          },
+          totalAmount: { // Raw total amount
+            isVisible: { list: true, show: true, edit: true, filter: true }
+          },
+          totalAmountGerman: { // Formatted for display
+            label: 'Total Amount German',
+            isVisible: { list: true, show: true, edit: false, filter: false }
+          },
+          date: { // Raw date
+            isVisible: { list: true, show: true, edit: true, filter: true }
+          },
+          dateGerman: { // Formatted for display
+            label: 'Date German',
+            isVisible: { list: true, show: true, edit: false, filter: false }
+          },
+          createdAt: {
+            label: 'Created At',
+            isVisible: { list: true, show: true, edit: false, filter: false }
+          },
+          updatedAt: {
+            label: 'Updated At',
+            isVisible: { list: true, show: true, edit: false, filter: false }
+          }
+          // The virtual 'id' field from the model (alias for 'number') will be implicitly handled
+          // or can be explicitly hidden if it causes issues:
+          // id: { isVisible: false }
         },
-        navigation: null,
+        listProperties: [ // Defines columns shown in the list and their order
+          'displayRowNumber',
+          'updatedAt',
+          'createdAt',
+          'totalAmountGerman',
+          'dateGerman',
+          'date',
+          'totalAmount',
+          'type'
+          // Add 'invoiceNumber' here if you want it in the list
+        ],
+        actions: {
+          list: {
+            after: async (response, request, context) => {
+              const { records, meta } = response;
+              if (records && meta) {
+                const baseIndex = (meta.page - 1) * meta.perPage;
+                records.forEach((record, index) => {
+                  // record.params contains the actual data for each row
+                  record.params.displayRowNumber = baseIndex + index + 1;
+                });
+              }
+              return response;
+            },
+          },
+          // Retain default actions for new, edit, delete, show, bulkDelete
+          // Or customize them if needed, for example:
+          // new: { ... },
+          // edit: { ... },
+        },
+        navigation: null, // Keeps it top-level in sidebar
       }
     },
     {
