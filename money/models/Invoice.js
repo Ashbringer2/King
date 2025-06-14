@@ -1,24 +1,20 @@
 const { DataTypes } = require('sequelize');
 module.exports = (sequelize) => {
   const Invoice = sequelize.define('Invoice', {
-    number:      { type: DataTypes.STRING,    allowNull: false, unique: true },
-    date:        { type: DataTypes.DATEONLY,  allowNull: false },
+    number:      { type: DataTypes.INTEGER, allowNull: false, autoIncrement: true, primaryKey: true },
+    invoiceNumber: { type: DataTypes.STRING, allowNull: false },
+    type:        { type: DataTypes.STRING,    allowNull: false },
     totalAmount: { type: DataTypes.DECIMAL(10,2), allowNull: false, defaultValue: 0 },
+    date:        { type: DataTypes.DATE,  allowNull: false },
     dateGerman: {
       type: DataTypes.VIRTUAL,
       get() {
-        const dateStr = this.getDataValue('date');
-        if (!dateStr) return '';
-        let dateObj;
-        if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-          const [y, m, d] = dateStr.split('-');
-          dateObj = new Date(Number(y), Number(m) - 1, Number(d));
-        } else {
-          dateObj = new Date(dateStr);
-        }
-        if (isNaN(dateObj.getTime())) return dateStr;
+        const dateVal = this.getDataValue('date');
+        if (!dateVal) return '';
+        const dateObj = new Date(dateVal);
+        if (isNaN(dateObj.getTime())) return dateVal;
         const pad = n => n.toString().padStart(2, '0');
-        return `${pad(dateObj.getDate())}.${pad(dateObj.getMonth()+1)}.${dateObj.getFullYear()}`;
+        return `${pad(dateObj.getDate())}.${pad(dateObj.getMonth()+1)}.${dateObj.getFullYear()} ${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}`;
       }
     },
     totalAmountGerman: {

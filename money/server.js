@@ -60,49 +60,29 @@ const cors = require('cors');
     // GET /api/invoices - list all invoices
     apiRouter.get('/invoices', async (req, res) => {
       try {
-        console.log('[GET /api/invoices] Fetching all invoices...');
-        const all = await Invoice.findAll();
-        console.log(`[GET /api/invoices] Found ${all.length} invoices.`);
-        // Format date and totalAmount for German display
-        const formatted = all.map((inv, idx) => {
-          // --- Date formatting ---
-          let dateStr = inv.date;
+        // Support pagination and filtering
+        const page = parseInt(req.query.page) || 1;
+        const pageSize = parseInt(req.query.pageSize) || 10;
+        const offset = (page - 1) * pageSize;
+        const where = {};
+        if (req.query.type) where.type = req.query.type;
+        if (req.query.invoiceNumber) where.invoiceNumber = req.query.invoiceNumber;
+        const { count, rows: all } = await Invoice.findAndCountAll({ where, offset, limit: pageSize, order: [['date', 'DESC']] });
+        // Format date as dd.mm.yyyy hh:mm
+        const formatted = all.map(inv => {
+          let dateObj = new Date(inv.date);
+          const pad = n => n.toString().padStart(2, '0');
           let formattedDate = '';
-          if (dateStr) {
-            // Accept both YYYY-MM-DD and Date objects
-            let dateObj;
-            if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-              const [y, m, d] = dateStr.split('-');
-              dateObj = new Date(Number(y), Number(m) - 1, Number(d));
-            } else {
-              dateObj = new Date(dateStr);
-            }
-            if (!isNaN(dateObj.getTime())) {
-              const pad = n => n.toString().padStart(2, '0');
-              formattedDate = `${pad(dateObj.getDate())}.${pad(dateObj.getMonth()+1)}.${dateObj.getFullYear()}`;
-            } else {
-              formattedDate = dateStr;
-            }
+          if (!isNaN(dateObj.getTime())) {
+            formattedDate = `${pad(dateObj.getDate())}.${pad(dateObj.getMonth()+1)}.${dateObj.getFullYear()} ${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}`;
           }
-          // --- Total formatting ---
-          let totalRaw = inv.totalAmount;
-          let totalNum = Number(totalRaw);
-          let formattedTotal = '';
-          if (!isNaN(totalNum)) {
-            formattedTotal = `${totalNum.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
-          }
-          // Log each invoice transformation
-          console.log(`[GET /api/invoices] Invoice #${idx+1}: number=${inv.number}, date=${dateStr} => ${formattedDate}, totalAmount=${totalRaw} => ${formattedTotal}`);
           return {
             ...inv.toJSON(),
-            date: dateStr, // ISO for input
-            dateGerman: formattedDate, // for display
-            totalAmount: formattedTotal
+            date: formattedDate
           };
         });
-        res.json(formatted);
+        res.json({ total: count, data: formatted });
       } catch (err) {
-        console.error('[GET /api/invoices] Error:', err);
         res.status(500).json({ error: 'Failed to fetch invoices' });
       }
     });
@@ -110,29 +90,15 @@ const cors = require('cors');
     // POST /api/invoices - create a new invoice
     apiRouter.post('/invoices', async (req, res) => {
       try {
-        console.log('[POST /api/invoices] Creating invoice with body:', req.body);
-        let { number, date, totalAmount } = req.body;
-        if (!number || !date || totalAmount === undefined || totalAmount === null || totalAmount === '') {
-          console.warn('[POST /api/invoices] Missing required fields.');
-          return res.status(400).json({ error: 'number, date, and totalAmount are required.' });
+        let { invoiceNumber, type, totalAmount } = req.body;
+        if (!invoiceNumber || !type || totalAmount === undefined || totalAmount === null || totalAmount === '') {
+          return res.status(400).json({ error: 'invoiceNumber, type, and totalAmount are required.' });
         }
-        let dateObj = new Date(date);
-        if (isNaN(dateObj.getTime())) {
-          console.warn('[POST /api/invoices] Invalid date format:', date);
-          return res.status(400).json({ error: 'Invalid date format.' });
-        }
-        // Store date as YYYY-MM-DD
-        const formattedDate = dateObj.toISOString().slice(0, 10);
-        const total = Number(totalAmount);
-        if (isNaN(total)) {
-          console.warn('[POST /api/invoices] Invalid totalAmount:', totalAmount);
-          return res.status(400).json({ error: 'totalAmount must be a valid number.' });
-        }
-        const inv = await Invoice.create({ number, date: formattedDate, totalAmount: total });
-        console.log('[POST /api/invoices] Created invoice:', inv.toJSON());
+        // Save with current datetime
+        const now = new Date();
+        const inv = await Invoice.create({ invoiceNumber, type, totalAmount, date: now });
         res.status(201).json(inv);
       } catch (err) {
-        console.error('[POST /api/invoices] Error:', err);
         res.status(400).json({ error: err.message });
       }
     });
@@ -184,6 +150,29 @@ const cors = require('cors');
         } else {
           res.status(404).json({ error: 'Invoice not found.' });
         }
+      } catch (err) {
+        res.status(400).json({ error: err.message });
+      }
+    });
+
+    // BULK POST /api/invoices/bulk - create multiple invoices at once
+    apiRouter.post('/invoices/bulk', async (req, res) => {
+      try {
+        const { invoices } = req.body;
+        if (!Array.isArray(invoices) || invoices.length === 0) {
+          return res.status(400).json({ error: 'No invoices provided.' });
+        }
+        const created = [];
+        for (const row of invoices) {
+          const { invoiceNumber, type, value } = row;
+          if (!invoiceNumber || !type || value === undefined || value === null || value === '') {
+            continue; // skip invalid rows
+          }
+          const now = new Date();
+          const inv = await Invoice.create({ invoiceNumber, type, totalAmount: value, date: now });
+          created.push(inv);
+        }
+        res.status(201).json({ created: created.length });
       } catch (err) {
         res.status(400).json({ error: err.message });
       }
