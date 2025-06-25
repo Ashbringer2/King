@@ -7,8 +7,7 @@ import { Landing }          from './app/pages/landing/landing';
 import { Notfound }         from './app/pages/notfound/notfound';
 
 import { InvoiceComponent } from './app/pages/invoices/invoices';
-// import { TransactionsComponent } from './app/pages/transactions/transactions.component';
-// import { ReportsComponent }      from './app/pages/reports/reports.component';
+import { TransactionsComponent } from './app/pages/transaction/transactions';
 
 export const appRoutes: Routes = [
   {
@@ -17,8 +16,7 @@ export const appRoutes: Routes = [
     children: [
       { path: '',             component: Dashboard },
       { path: 'invoices',     component: InvoiceComponent },
-    //   { path: 'transactions', component: TransactionsComponent },
-    //   { path: 'reports',      component: ReportsComponent },
+      { path: 'invoices/transacion', component: TransactionsComponent },
       { path: 'uikit',        loadChildren: () => import('./app/pages/uikit/uikit.routes') },
       { path: 'documentation',component: Documentation },
       { path: 'pages',        loadChildren: () => import('./app/pages/pages.routes') }

@@ -11,3 +11,5 @@ Start-Process powershell -WorkingDirectory "$PSScriptRoot\client" -ArgumentList 
 
 # Instructions for the user
 Write-Host "Backend (Node.js) and Frontend (Angular) are starting in separate terminals.`nCheck each window for logs and errors."
+
+

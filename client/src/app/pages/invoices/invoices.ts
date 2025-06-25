@@ -1,18 +1,29 @@
-// src/app/invoice/invoice.ts
-import { Component, OnInit } from '@angular/core';
-import { ApiService } from '../service/api.service';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { TableModule } from 'primeng/table';
-import { ButtonModule } from 'primeng/button';
-import { DropdownModule } from 'primeng/dropdown';
-import { InputTextModule } from 'primeng/inputtext';
-import { ToastModule } from 'primeng/toast';
-import { MessageService } from 'primeng/api';
-import { CalendarModule } from 'primeng/calendar';
+// src/app/pages/invoices/invoices.ts
+import { Component, OnInit, HostListener } from '@angular/core';
+import { CommonModule }        from '@angular/common';
+import { FormsModule }         from '@angular/forms';
+import { TableModule }         from 'primeng/table';
+import { ButtonModule }        from 'primeng/button';
+import { DropdownModule }      from 'primeng/dropdown';
+import { DatePickerModule }    from 'primeng/datepicker';
+import { InputTextModule }     from 'primeng/inputtext';
+import { ToastModule }         from 'primeng/toast';
+import { MessageService }      from 'primeng/api';
+import { ApiService, Invoice } from '../service/api.service';
+
+/** Extend Invoice so dateGerman is always a string */
+type DisplayInvoice = Invoice & { dateGerman: string };
+
+/** Form model uses actual Date objects */
+interface FormInvoice {
+  invoiceNumber: string;
+  type: string;
+  totalAmount: number;
+  date: Date;
+}
 
 @Component({
-  selector: 'app-invoice',
+  selector: 'app-invoices',
   standalone: true,
   imports: [
     CommonModule,
@@ -20,275 +31,430 @@ import { CalendarModule } from 'primeng/calendar';
     TableModule,
     ButtonModule,
     DropdownModule,
+    DatePickerModule,
     InputTextModule,
-    ToastModule,
-    CalendarModule
+    ToastModule
   ],
   providers: [MessageService],
   template: `
     <div class="surface-section px-4 py-5 md:px-6 lg:px-8">
       <h2 class="text-2xl font-semibold mb-4">Expense Worksheet</h2>
-      <button *ngIf="!showForm" pButton type="button" label="Add Expense" class="p-button-primary mb-4" (click)="showForm = true"></button>
-      <form *ngIf="showForm" (ngSubmit)="addExpense()" class="mb-4 bg-gray-50 p-4 rounded shadow">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <!-- Removed the input field for 'number' as it is auto-incremented -->
-          <!-- Updated styles for input fields to make them larger -->
-          <div>
-            <label class="block mb-1">NUMRI I FATURES</label>
-            <input type="text" class="w-full p-3 text-lg" [(ngModel)]="form.invoiceNumber" name="invoiceNumber" required />
+
+      <!-- Toolbar -->
+      <div class="flex flex-wrap align-items-center gap-2 mb-4">
+        <!-- Add Expense -->
+        <button
+          *ngIf="!showForm"
+          pButton
+          type="button"
+          label="Add Expense"
+          class="p-button-success"
+          (click)="showForm = true"
+        ></button>
+
+        <!-- FROM / TO pickers -->
+        <p-datepicker
+          [(ngModel)]="exportFromDate"
+          [showIcon]="true"
+          placeholder="From"
+          dateFormat="dd/mm/yy"
+          inputStyleClass="w-8rem"
+        ></p-datepicker>
+        <p-datepicker
+          [(ngModel)]="exportToDate"
+          [showIcon]="true"
+          placeholder="To"
+          dateFormat="dd/mm/yy"
+          inputStyleClass="w-8rem"
+        ></p-datepicker>
+
+        <!-- FILTER -->
+        <button
+          pButton
+          type="button"
+          label="Filter"
+          class="p-button-primary"
+          (click)="filterInvoices()"
+        ></button>
+
+        <!-- CLEAR -->
+        <button
+          *ngIf="exportFromDate && exportToDate"
+          pButton
+          type="button"
+          label="Clear"
+          class="p-button-secondary"
+          (click)="clearDateFilter()"
+        ></button>
+
+        <!-- EXPORT -->
+        <button
+          pButton
+          type="button"
+          label="Export to Excel"
+          icon="pi pi-file-excel"
+          class="p-button-info ml-auto"
+          (click)="exportExcel()"
+        ></button>
+      </div>
+
+      <!-- Add/Edit Form -->
+      <form
+        *ngIf="showForm"
+        (ngSubmit)="addExpense()"
+        class="mb-4 surface-card p-4 rounded-lg shadow-2 p-fluid"
+      >
+        <div class="formgrid grid">
+          <div class="field col-12 md:col-3">
+            <label for="invoiceNumber" class="font-medium">INVOICE NUMBER</label>
+            <input
+              id="invoiceNumber"
+              type="text"
+              pInputText
+              class="w-full"
+              [(ngModel)]="form.invoiceNumber"
+              name="invoiceNumber"
+              required
+            />
           </div>
-          <div>
-            <label class="block mb-1">TIPI</label>
-            <p-dropdown [options]="typeOptions" [(ngModel)]="form.type" name="type" optionLabel="label" optionValue="value" placeholder="Zgjidh..." class="w-full p-3 text-lg"></p-dropdown>
+          <div class="field col-12 md:col-3">
+            <label for="type" class="font-medium">TYPE</label>
+            <p-dropdown
+              id="type"
+              [options]="typeOptions"
+              [(ngModel)]="form.type"
+              name="type"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Select..."
+              class="w-full"
+            ></p-dropdown>
           </div>
-          <div>
-            <label class="block mb-1">VLERA</label>
-            <input type="number" class="w-full p-3 text-lg" [(ngModel)]="form.value" name="value" required min="0" />
+          <div class="field col-12 md:col-3">
+            <label for="totalAmount" class="font-medium">AMOUNT (€)</label>
+            <input
+              id="totalAmount"
+              type="number"
+              pInputText
+              class="w-full"
+              [(ngModel)]="form.totalAmount"
+              name="totalAmount"
+              required
+              min="0"
+              step="0.01"
+            />
+          </div>
+          <div class="field col-12 md:col-3">
+            <label for="date" class="font-medium">DATE</label>
+            <p-datepicker
+              id="date"
+              [(ngModel)]="form.date"
+              name="date"
+              [showIcon]="true"
+              dateFormat="dd/mm/yy"
+              class="w-full"
+            ></p-datepicker>
           </div>
         </div>
-        <div class="mt-6 flex gap-4 justify-center">
-          <button *ngIf="editingId !== null" pButton type="submit" label="Ruaj" class="p-button-success p-button-lg rounded-full px-8 py-3 text-lg"></button>
-          <button *ngIf="editingId === null" pButton type="submit" label="Shto" class="p-button-success p-button-lg rounded-full px-8 py-3 text-lg"></button>
-          <button pButton type="button" label="Anulo" class="p-button-secondary p-button-lg rounded-full px-8 py-3 text-lg" (click)="cancelForm()"></button>
+        <div class="mt-4 flex gap-3 justify-content-center">
+          <button
+            *ngIf="editingIndex !== null"
+            pButton
+            type="submit"
+            label="Save"
+            class="p-button-success"
+          ></button>
+          <button
+            *ngIf="editingIndex === null"
+            pButton
+            type="submit"
+            label="Add"
+            class="p-button-success"
+          ></button>
+          <button
+            pButton
+            type="button"
+            label="Cancel"
+            class="p-button-secondary"
+            (click)="cancelForm()"
+          ></button>
         </div>
       </form>
-      <!-- Table of unsaved expenses (to be saved) -->
-      <table *ngIf="expenses.length > 0" class="w-full border border-collapse mt-2 bg-white">
-        <thead>
-          <tr class="bg-gray-100">
-            <th class="p-2 border">NUMRI I FATURES</th>
-            <th class="p-2 border">TIPI</th>
-            <th class="p-2 border">VLERA</th>
-            <th class="p-2 border">DATA</th>
-            <th class="p-2 border">AKSIONET</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let expense of expenses; let i = index">
-            <td class="p-2 border">{{ expense.invoiceNumber }}</td>
-            <td class="p-2 border">{{ expense.type }}</td>
-            <td class="p-2 border">{{ expense.value }}</td>
-            <td class="p-2 border">{{ expense.date | date:'dd/MM/yyyy' }}</td>
-            <td class="p-2 border">
-              <button pButton type="button" label="Edit" class="p-button-warning" (click)="editExpense(i)"></button>
-              <button pButton type="button" label="Delete" class="p-button-danger" (click)="removeExpense(i)"></button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <div *ngIf="expenses.length > 0" class="mt-4 flex gap-2">
-        <button pButton type="button" label="Ruaj të gjitha" class="p-button-primary" (click)="saveAll()"></button>
-        <button pButton type="button" label="Pastro" class="p-button-warning" (click)="clearExpenses()"></button>
-      </div>
-      <!-- Table of saved expenses (from server) -->
-      <table *ngIf="invoices.length > 0" class="w-full border border-collapse mt-10 bg-white">
-        <thead>
-          <tr class="bg-gray-100">
-            <th class="p-2 border">NUMRI RENDOR</th>
-            <th class="p-2 border">NUMRI I FATURES</th>
-            <th class="p-2 border">TIPI</th>
-            <th class="p-2 border">VLERA</th>
-            <th class="p-2 border">DATA</th>
-            <th class="p-2 border">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let inv of invoices">
-            <td class="p-2 border">{{ inv.number }}</td>
-            <td class="p-2 border">{{ inv.invoiceNumber }}</td>
-            <td class="p-2 border">{{ inv.type }}</td>
-            <td class="p-2 border">{{ inv.totalAmount }}</td>
-            <td class="p-2 border">{{ inv.date }}</td>
-            <td class="p-2 border text-center flex gap-2 justify-center">
-              <button pButton type="button" icon="pi pi-trash" class="p-button-danger p-button-rounded p-button-lg" (click)="deleteInvoice(inv)"></button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <p-toast></p-toast>
 
-      <!-- Bulk Entry Dialog -->
-      <div *ngIf="showBulkForm" class="fixed inset-0 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full">
-          <h3 class="text-xl font-semibold mb-4">Add Bulk Expenses</h3>
-          <div class="grid grid-cols-1 gap-4">
-            <div>
-              <label class="block mb-1">NUMRI I FATURES (comma or newline separated)</label>
-              <textarea class="w-full border rounded p-2" [(ngModel)]="bulkInvoiceNumbers" rows="3"></textarea>
-            </div>
-            <div>
-              <label class="block mb-1">VLERA (comma or newline separated)</label>
-              <textarea class="w-full border rounded p-2" [(ngModel)]="bulkValues" rows="3"></textarea>
-            </div>
-            <div>
-              <label class="block mb-1">TIPI</label>
-              <p-dropdown [options]="typeOptions" [(ngModel)]="bulkType" name="bulkType" optionLabel="label" optionValue="value" placeholder="Zgjidh..." class="w-full"></p-dropdown>
-            </div>
-            <div>
-              <label class="block mb-1">DATA</label>
-              <p-calendar [(ngModel)]="bulkDate" [showIcon]="true" class="w-full"></p-calendar>
-            </div>
-          </div>
-          <div class="mt-4 flex gap-2 justify-end">
-            <button pButton type="button" label="Shto" class="p-button-success" (click)="addBulkExpenses()"></button>
-            <button pButton type="button" label="Anulo" class="p-button-secondary" (click)="closeBulkForm()"></button>
-          </div>
-        </div>
+      <!-- Unsaved Drafts Table -->
+      <table
+        *ngIf="drafts.length"
+        class="w-full border-collapse bg-white dark:bg-gray-900"
+      >
+        <thead>
+          <tr class="bg-gray-100 dark:bg-gray-800 text-sm">
+            <th class="p-2 border">INVOICE NUMBER</th>
+            <th class="p-2 border">TYPE</th>
+            <th class="p-2 border">AMOUNT</th>
+            <th class="p-2 border">DATE</th>
+            <th class="p-2 border text-center">ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            *ngFor="let exp of drafts; let i = index"
+            class="hover:surface-hover"
+          >
+            <td class="p-2 border">{{ exp.invoiceNumber }}</td>
+            <td class="p-2 border">{{ exp.type }}</td>
+            <td class="p-2 border">{{ exp.totalAmount }}</td>
+            <td class="p-2 border">{{ exp.date | date:'dd/MM/yyyy' }}</td>
+            <td class="p-2 border text-center">
+              <button
+                pButton
+                icon="pi pi-pencil"
+                class="p-button-warning p-button-rounded mr-2"
+                (click)="editDraft(i)"
+              ></button>
+              <button
+                pButton
+                icon="pi pi-trash"
+                class="p-button-danger p-button-rounded"
+                (click)="removeDraft(i)"
+              ></button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div *ngIf="drafts.length" class="mt-3 flex gap-2">
+        <button
+          pButton
+          label="Save all"
+          class="p-button-primary"
+          (click)="saveAll()"
+        ></button>
+        <button
+          pButton
+          label="Clear"
+          class="p-button-warning"
+          (click)="clearDrafts()"
+        ></button>
       </div>
+
+      <!-- Saved Invoices Table -->
+      <p-table
+        *ngIf="filteredInvoices.length"
+        [value]="filteredInvoices"
+        responsiveLayout="scroll"
+        [rowHover]="true"
+        [showGridlines]="true"
+        styleClass="w-full mt-5"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th>#</th>
+            <th>INVOICE NUMBER</th>
+            <th>TYPE</th>
+            <th>AMOUNT</th>
+            <th>DATE (DE)</th>
+            <th class="text-center">ACTIONS</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-inv let-idx="rowIndex">
+          <tr>
+            <td>{{ idx + 1 }}</td>
+            <td>{{ inv.invoiceNumber }}</td>
+            <td>{{ inv.type }}</td>
+            <td>{{ inv.vlera }}</td>
+            <td>{{ inv.dateGerman }}</td>
+            <td class="text-center">
+              <button
+                pButton
+                icon="pi pi-trash"
+                class="p-button-danger p-button-rounded"
+                (click)="deleteInvoice(inv)"
+              ></button>
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="6">No invoices found.</td>
+          </tr>
+        </ng-template>
+      </p-table>
+
+      <p-toast></p-toast>
     </div>
-  `
+  `,
+  styles: [
+    `
+      :host ::ng-deep .p-datepicker .p-inputtext {
+        width: 100%;
+      }
+    `
+  ]
 })
 export class InvoiceComponent implements OnInit {
-  showForm = false;
-  form = { number: 0, invoiceNumber: '', type: '', value: '', date: new Date() };
-  expenses: any[] = [];
-  invoices: any[] = [];
-  editingId: number | null = null;
+  showForm   = false;
+  form: FormInvoice = {
+    invoiceNumber: '',
+    type:          '',
+    totalAmount:   0,
+    date:          new Date()
+  };
+
+  drafts: FormInvoice[] = [];
+  invoices: DisplayInvoice[] = [];
+  filteredInvoices: DisplayInvoice[] = [];
+  editingIndex: number | null = null;
+
   typeOptions = [
-    { label: 'Shp.Firm(Servis&Klient)', value: 'Shp.Firm(Servis&Klient)' },
-    { label: 'Marrje Cash me Faturë', value: 'Marrje Cash me Faturë' },
-    { label: 'Marrje Cash Auto', value: 'Marrje Cash Auto' },
-    { label: 'Fatura me Bank', value: 'Fatura me Bank' },
-    { label: 'Pagesat Dtbh', value: 'Pagesat Dtbh' },
-    { label: 'Pagesat Mac', value: 'Pagesat Mac' },
-    { label: 'Depozime', value: 'Depozime' },
-    { label: 'Borxhet', value: 'Borxhet' }
+    { label: 'Outgoing Company (Service & Client)', value: 'Outgoing Company (Service & Client)' },
+    { label: 'Cash Withdrawal with Invoice',        value: 'Cash Withdrawal with Invoice' },
+    { label: 'Cash Withdrawal Auto',                value: 'Cash Withdrawal Auto' },
+    { label: 'Invoice via Bank',                    value: 'Invoice via Bank' },
+    { label: 'Payments Dtbh',                       value: 'Payments Dtbh' },
+    { label: 'Payments Mac',                       value: 'Payments Mac' },
+    { label: 'Deposits',                            value: 'Deposits' },
+    { label: 'Debts',                               value: 'Debts' }
   ];
 
-  // Bulk entry logic: allow multi-line input for invoice numbers and values
-  bulkInvoiceNumbers = '';
-  bulkValues = '';
-  bulkType = '';
-  bulkDate = new Date();
-  showBulkForm = false;
+  // only from/to remain
+  exportFromDate: Date | null = null;
+  exportToDate:   Date | null = null;
 
-  constructor(private api: ApiService, private message: MessageService) {}
+  constructor(private api: ApiService, private toast: MessageService) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.loadInvoices();
   }
 
-  loadInvoices() {
-    // Fetch all invoices, not paged
-    this.api.getInvoicesPaged(1, 10000).subscribe(res => {
-      this.invoices = res.data || res;
+  private loadInvoices(): void {
+    this.api.getInvoicesPaged(1, 10000).subscribe({
+      next: res => {
+        this.invoices = res.data.map(inv => ({
+          ...inv,
+          dateGerman: inv.dateGerman ?? inv.date
+        }));
+        this.filteredInvoices = [...this.invoices];
+      },
+      error: () =>
+        this.toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to load invoices.' })
     });
   }
 
-  addExpense() {
-    if (!this.form.invoiceNumber || !this.form.type || this.form.value === '' || !this.form.date) {
-      this.message.add({ severity: 'warn', summary: 'Validation', detail: 'All fields required.' });
-      return;
-    }
-    // Always show the table after adding
-    this.expenses.push({ ...this.form });
-    this.showForm = true;
-    this.form = { number: 0, invoiceNumber: '', type: '', value: '', date: new Date() };
-  }
-
-  cancelForm() {
-    this.form = { number: 0, invoiceNumber: '', type: '', value: '', date: new Date() };
-    this.showForm = false;
-  }
-
-  removeExpense(i: number) {
-    this.expenses.splice(i, 1);
-  }
-
-  clearExpenses() {
-    this.expenses = [];
-  }
-
-  openBulkForm() {
-    this.showBulkForm = true;
-  }
-
-  closeBulkForm() {
-    this.showBulkForm = false;
-  }
-
-  addBulkExpenses() {
-    const numbers = this.bulkInvoiceNumbers.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
-    const values = this.bulkValues.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
-    if (!this.bulkType || numbers.length === 0 || values.length === 0) {
-      this.message.add({ severity: 'warn', summary: 'Validation', detail: 'All fields required.' });
-      return;
-    }
-    for (let i = 0; i < Math.max(numbers.length, values.length); i++) {
-      this.expenses.push({
-        invoiceNumber: numbers[i] || '',
-        type: this.bulkType,
-        value: values[i] || '',
-        date: this.bulkDate
-      });
-    }
-    this.bulkInvoiceNumbers = '';
-    this.bulkValues = '';
-    this.bulkType = '';
-    this.bulkDate = new Date();
-    this.closeBulkForm();
-  }
-
-  saveAll() {
-    if (this.expenses.length === 0) {
-      this.message.add({ severity: 'warn', summary: 'Validation', detail: 'No expenses to save.' });
-      return;
-    }
-    this.api.createInvoicesBulk(this.expenses).subscribe({
+  deleteInvoice(inv: DisplayInvoice): void {
+    this.api.deleteInvoice(inv.id).subscribe({
       next: () => {
-        this.message.add({ severity: 'success', summary: 'Saved', detail: 'All expenses saved.' });
-        this.clearExpenses();
+        this.toast.add({ severity: 'success', summary: 'Deleted', detail: 'Invoice removed.' });
         this.loadInvoices();
       },
-      error: () => {
-        this.message.add({ severity: 'error', summary: 'Error', detail: 'Failed to save expenses.' });
-      }
+      error: () =>
+        this.toast.add({ severity: 'error', summary: 'Error', detail: 'Delete failed.' })
     });
   }
 
-  deleteInvoice(inv: any) {
-    this.api.deleteInvoice(inv.number).subscribe({
+  saveAll(): void {
+    if (!this.drafts.length) {
+      this.toast.add({ severity: 'warn', summary: 'Warning', detail: 'No drafts to save.' });
+      return;
+    }
+    const payload: Partial<Invoice>[] = this.drafts.map(d => ({
+      invoiceNumber: d.invoiceNumber,
+      type:          d.type,
+      totalAmount:   d.totalAmount,
+      date:          d.date.toISOString()
+    }));
+    this.api.createInvoicesBulk(payload).subscribe({
       next: () => {
-        this.message.add({ severity: 'success', summary: 'Deleted', detail: 'Expense deleted.' });
+        this.toast.add({ severity: 'success', summary: 'Saved', detail: 'All drafts saved.' });
+        this.drafts = [];
         this.loadInvoices();
       },
-      error: () => {
-        this.message.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete expense.' });
-      }
+      error: () =>
+        this.toast.add({ severity: 'error', summary: 'Error', detail: 'Bulk save failed.' })
     });
   }
 
-  editInvoice(inv: any) {
-    // Populate the form with the selected invoice for editing
-    this.form = {
-      number: inv.number || 0,
-      invoiceNumber: inv.invoiceNumber,
-      type: inv.type,
-      value: inv.totalAmount,
-      date: new Date() // or parse inv.date if needed
-    };
-    this.showForm = true;
-    // Optionally, store the invoice id for update
-    this.editingId = inv.number;
-  }
-
-  printInvoice(inv: any) {
-    window.print(); // Simple print, or implement custom print logic
-  }
-
-  editExpense(index: number) {
-    const expense = this.expenses[index];
-    this.form = { ...expense };
-    this.editingId = index;
-    this.showForm = true;
-  }
-
-  saveExpense() {
-    if (this.editingId !== null) {
-      this.expenses[this.editingId] = { ...this.form };
-      this.editingId = null;
+  addExpense(): void {
+    if (!this.form.invoiceNumber || !this.form.type || this.form.totalAmount === null) {
+      this.toast.add({ severity: 'warn', summary: 'Validation', detail: 'All fields required.' });
+      return;
+    }
+    if (this.editingIndex !== null) {
+      this.drafts[this.editingIndex] = { ...this.form };
+      this.editingIndex = null;
     } else {
-      this.addExpense();
+      this.drafts.push({ ...this.form });
     }
+    this.resetForm();
+  }
+
+  editDraft(idx: number): void {
+    this.form = { ...this.drafts[idx] };
+    this.editingIndex = idx;
+    this.showForm = true;
+  }
+
+  removeDraft(idx: number): void {
+    this.drafts.splice(idx, 1);
+  }
+
+  clearDrafts(): void {
+    this.drafts = [];
+  }
+
+  cancelForm(): void {
+    this.resetForm();
+  }
+
+  private resetForm(): void {
+    this.form = { invoiceNumber: '', type: '', totalAmount: 0, date: new Date() };
+    this.showForm = false;
+    this.editingIndex = null;
+  }
+
+  /** Filter invoices between two selected dates */
+  filterInvoices(): void {
+    console.log('filterInvoices() called with:', this.exportFromDate, this.exportToDate);
+    if (!this.exportFromDate || !this.exportToDate) {
+      return;
+    }
+
+    const fromMs = this.exportFromDate.getTime();
+    const toDate = new Date(this.exportToDate);
+    toDate.setHours(23, 59, 59, 999);
+    const toMs = toDate.getTime();
+
+    this.filteredInvoices = this.invoices.filter(inv => {
+      const invMs = new Date(inv.date).getTime();
+      return invMs >= fromMs && invMs <= toMs;
+    });
+
+    console.log(' matched rows:', this.filteredInvoices.length);
+  }
+
+  clearDateFilter(): void {
+    this.exportFromDate = null;
+    this.exportToDate   = null;
+    this.filteredInvoices = [...this.invoices];
+  }
+
+  exportExcel(): void {
+    this.api
+      .exportInvoicesExcel(this.exportFromDate ?? undefined, this.exportToDate ?? undefined)
+      .subscribe({
+        next: blob => {
+          const url = window.URL.createObjectURL(blob);
+          const a   = document.createElement('a');
+          a.href  = url;
+          a.download = 'invoices.xlsx';
+          a.click();
+          window.URL.revokeObjectURL(url);
+        },
+        error: () =>
+          this.toast.add({ severity: 'error', summary: 'Error', detail: 'Export failed.' })
+      });
+  }
+
+  @HostListener('document:keydown.enter', ['$event'])
+  onEnter(event: KeyboardEvent) {
+    // fast-input focus logic here if needed
   }
 }

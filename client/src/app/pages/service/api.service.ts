@@ -1,34 +1,28 @@
-// src/app/services/api.service.ts
-
-
 import { Injectable, inject } from '@angular/core';
-import { HttpClient }         from '@angular/common/http';
-import { Observable }         from 'rxjs';
-import { map }                from 'rxjs/operators';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable } from 'rxjs';
 
+/* ------ DTOs ------ */
 export interface Invoice {
   id: number;
-  number: string;
-  date: string;
-  totalAmount: number;
-}
-
-export interface Transaction {
-  id: number;
+  number: number;
+  invoiceNumber: string;
   type: string;
-  amount: number;
+  totalAmount: number;
   date: string;
-  description?: string;
-  invoiceId?: number;
+  vlera?: string;
+  dateGerman?: string;
+  totalAmountGerman?: string;
 }
+export interface Transaction { /* unchanged */ }
 
+/* ------ Service ------ */
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private http = inject(HttpClient);
 
-  // Invoices
   getInvoices(): Observable<Invoice[]> {
-    return this.http.get<Invoice[]>('/api/invoices'); // No further formatting needed, backend sends German format
+    return this.http.get<Invoice[]>('/api/invoices');
   }
   createInvoice(inv: Partial<Invoice>): Observable<Invoice> {
     return this.http.post<Invoice>('/api/invoices', inv);
@@ -36,28 +30,52 @@ export class ApiService {
   updateInvoice(id: number, inv: Partial<Invoice>): Observable<Invoice> {
     return this.http.put<Invoice>(`/api/invoices/${id}`, inv);
   }
-  deleteInvoice(id: number): Observable<any> {
-    return this.http.delete(`/api/invoices/${id}`);
+  deleteInvoice(id: number): Observable<void> {
+    return this.http.delete<void>(`/api/invoices/${id}`);
+  }
+  createInvoicesBulk(invoices: Partial<Invoice>[]): Observable<{ created: number }> {
+    return this.http.post<{ created: number }>('/api/invoices/bulk', { invoices });
+  }
+  getInvoicesPaged(
+    page = 1,
+    pageSize = 10,
+    type?: string,
+    invoiceNumber?: string
+  ): Observable<{ data: Invoice[]; page: number; pageSize: number; total: number }> {
+    let params = new HttpParams()
+      .set('page', page)
+      .set('pageSize', pageSize);
+    if (type) params = params.set('type', type);
+    if (invoiceNumber) params = params.set('invoiceNumber', invoiceNumber);
+    return this.http.get<{ data: Invoice[]; page: number; pageSize: number; total: number }>(
+      '/api/invoices',
+      { params }
+    );
   }
 
-  // Bulk create invoices
-  createInvoicesBulk(invoices: any[]): Observable<any> {
-    return this.http.post('/api/invoices/bulk', { invoices });
+  /** Export invoices as Excel, optional from/to dates */
+  exportInvoicesExcel(from?: Date, to?: Date): Observable<Blob> {
+    let params = new HttpParams();
+    if (from) {
+      params = params.set('from', from.toISOString());
+    }
+    if (to) {
+      params = params.set('to', to.toISOString());
+    }
+    return this.http.get('/api/invoices/export/excel', {
+      params,
+      responseType: 'blob'
+    });
   }
 
-  // Transactions
-  getTransactions(): Observable<Transaction[]> {
-    return this.http.get<Transaction[]>('/api/transactions');
+  /* Transactions… */
+  getTransactions(): Observable<{ data: Transaction[] }> {
+    return this.http.get<{ data: Transaction[] }>('/api/transactions');
   }
   createTransaction(tx: Partial<Transaction>): Observable<Transaction> {
     return this.http.post<Transaction>('/api/transactions', tx);
   }
-
-  // Get paginated/filterable invoices
-  getInvoicesPaged(page = 1, pageSize = 10, type?: string, invoiceNumber?: string) {
-    let params: any = { page, pageSize };
-    if (type) params.type = type;
-    if (invoiceNumber) params.invoiceNumber = invoiceNumber;
-    return this.http.get<any>('/api/invoices', { params });
+  deleteTransaction(id: number): Observable<void> {
+    return this.http.delete<void>(`/api/transactions/${id}`);
   }
 }

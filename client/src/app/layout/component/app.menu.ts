@@ -31,7 +31,8 @@ export class AppMenu {
             {
                 label: 'Invoices',
                 items: [
-                    { label: 'Invoices', icon: 'pi pi-fw pi-money-bill', routerLink: ['/invoices'] }
+                    { label: 'Invoices', icon: 'pi pi-fw pi-money-bill', routerLink: ['/invoices'] },
+                    { label: 'Transaction', icon: 'pi pi-fw pi-arrow-right-arrow-left', routerLink: ['/invoices/transacion'] }
                 ]
             },
             // UI Components section
