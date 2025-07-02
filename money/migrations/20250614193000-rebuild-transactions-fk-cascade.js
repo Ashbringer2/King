@@ -1,5 +1,9 @@
-
 'use strict';
+
+/**
+ * Migration to rebuild Transactions table with correct foreign key cascade behavior.
+ * (No leading blank line to avoid module issues.)
+ */
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {

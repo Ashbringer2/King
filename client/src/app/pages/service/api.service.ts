@@ -1,3 +1,5 @@
+// src/app/pages/service/api.service.ts
+
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
@@ -14,13 +16,24 @@ export interface Invoice {
   dateGerman?: string;
   totalAmountGerman?: string;
 }
-export interface Transaction { /* unchanged */ }
+
+export interface Transaction {
+  id?: number;
+  type: 'income' | 'expense' | 'debit' | 'credit';
+  amount: number;
+  date: string;
+  description?: string;
+  invoiceId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 /* ------ Service ------ */
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private http = inject(HttpClient);
 
+  /* Invoices… */
   getInvoices(): Observable<Invoice[]> {
     return this.http.get<Invoice[]>('/api/invoices');
   }
@@ -52,20 +65,11 @@ export class ApiService {
       { params }
     );
   }
-
-  /** Export invoices as Excel, optional from/to dates */
   exportInvoicesExcel(from?: Date, to?: Date): Observable<Blob> {
     let params = new HttpParams();
-    if (from) {
-      params = params.set('from', from.toISOString());
-    }
-    if (to) {
-      params = params.set('to', to.toISOString());
-    }
-    return this.http.get('/api/invoices/export/excel', {
-      params,
-      responseType: 'blob'
-    });
+    if (from) params = params.set('from', from.toISOString());
+    if (to)   params = params.set('to',   to.toISOString());
+    return this.http.get('/api/invoices/export/excel', { params, responseType: 'blob' });
   }
 
   /* Transactions… */
@@ -74,6 +78,10 @@ export class ApiService {
   }
   createTransaction(tx: Partial<Transaction>): Observable<Transaction> {
     return this.http.post<Transaction>('/api/transactions', tx);
+  }
+  /** ✏️ New: Update an existing transaction */
+  updateTransaction(id: number, tx: Partial<Transaction>): Observable<Transaction> {
+    return this.http.put<Transaction>(`/api/transactions/${id}`, tx);
   }
   deleteTransaction(id: number): Observable<void> {
     return this.http.delete<void>(`/api/transactions/${id}`);

@@ -1,5 +1,9 @@
-
 'use strict';
+
+/**
+ * Migration to rebuild Transactions table with correct foreign key cascade behavior.
+ * (No leading blank line to avoid module issues.)
+ */
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
@@ -67,6 +71,9 @@ module.exports = {
       // 4. Restore data (if any)
       if (existingTransactions.length > 0) {
         console.log('Restoring backed-up data...');
+        // Note: If invoiceId values in the backup referred to an old `Invoices.id` 
+        // and not `Invoices.number`, this restore might need adjustment.
+        // However, based on our previous findings, `invoiceId` was likely intended to be `Invoices.number`.
         await queryInterface.bulkInsert('Transactions', existingTransactions, { transaction });
         console.log('Data restored.');
       } else {
@@ -84,6 +91,9 @@ module.exports = {
   },
 
   async down(queryInterface, Sequelize) {
+    // This down migration is complex as it would involve restoring the *exact* previous state,
+    // including the incorrect foreign key. For simplicity, a basic drop is often used,
+    // or a more detailed reverse of the 'up' steps if absolutely necessary.
     const transaction = await queryInterface.sequelize.transaction();
     try {
       console.log('Reverting: Backing up current Transactions data (if any)...');
@@ -95,6 +105,8 @@ module.exports = {
       await queryInterface.dropTable('Transactions', { transaction });
       console.log('Reverting: Transactions table dropped.');
 
+      // Recreate with the *old* problematic schema (for true rollback)
+      // This is a simplified version; a true rollback would need the exact old CREATE TABLE statement.
       console.log('Reverting: Recreating Transactions table with potentially incorrect old schema...');
       await queryInterface.createTable('Transactions', {
         id: {
@@ -103,15 +115,17 @@ module.exports = {
           primaryKey: true,
           type: Sequelize.INTEGER
         },
-        type: { type: Sequelize.TEXT, allowNull: false }, 
+        type: { type: Sequelize.TEXT, allowNull: false }, // Simplified from ENUM for old schema
         amount: { type: Sequelize.DECIMAL(10, 2), allowNull: false },
-        date: { type: Sequelize.DATE, allowNull: false }, 
+        date: { type: Sequelize.DATE, allowNull: false }, // Was DATEONLY in model, but schema showed DATE
         description: { type: Sequelize.STRING },
         invoiceId: {
           type: Sequelize.INTEGER,
+          // Attempting to recreate the old problematic FK (referencing Invoices.id)
+          // This might fail if Invoices.id doesn't exist or isn't a PK/UNIQUE
           references: { model: 'Invoices', key: 'id' }, 
-          onDelete: 'SET NULL', 
-          onUpdate: 'CASCADE'   
+          onDelete: 'SET NULL', // Old behavior
+          onUpdate: 'CASCADE'   // Old behavior
         },
         createdAt: { allowNull: false, type: Sequelize.DATE },
         updatedAt: { allowNull: false, type: Sequelize.DATE }

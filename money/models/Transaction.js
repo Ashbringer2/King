@@ -7,14 +7,8 @@ const TransactionModel = (sequelize) =>
     date:        { type: DataTypes.DATEONLY,  allowNull: false },
     description: { type: DataTypes.STRING },
     invoiceId:   {
-      type: DataTypes.INTEGER,
-      allowNull: true, // Or false if a transaction must always have an invoice
-      references: {
-        model: 'Invoices', // This can also be the model name: Invoice
-        key: 'number',     // The column name in the Invoices table
-      },
-      onUpdate: 'CASCADE',
-      onDelete: 'CASCADE',
+      type: DataTypes.STRING, // Now free text
+      allowNull: true
     },
   });
 
