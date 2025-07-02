@@ -1,47 +1,51 @@
 // src/app.routes.ts
 
-import { Routes } from '@angular/router';
-
-import { AppLayout }             from './app/layout/component/app.layout';
-import { Dashboard }             from './app/pages/dashboard/dashboard';
-import { Documentation }         from './app/pages/documentation/documentation';
-import { Landing }               from './app/pages/landing/landing';
-import { Notfound }              from './app/pages/notfound/notfound';
-
-import { InvoiceComponent }      from './app/pages/invoices/invoices';
-import { TransactionsComponent } from './app/pages/transaction/transactions';
+import { Routes }               from '@angular/router';
+import { authGuard }            from './app/guards/auth.guard';
+import { AppLayout }            from './app/layout/component/app.layout';
+import { Dashboard }            from './app/pages/dashboard/dashboard';
+import { Documentation }        from './app/pages/documentation/documentation';
+import { Landing }              from './app/pages/landing/landing';
+import { Notfound }             from './app/pages/notfound/notfound';
+import { InvoiceComponent }     from './app/pages/invoices/invoices';
+import { TransactionsComponent }from './app/pages/transaction/transactions';
 
 export const appRoutes: Routes = [
-  // 1) Default → send straight into your auth flow
-  { path: '',                redirectTo: 'auth/login', pathMatch: 'full' },
-
-  // 2) Auth area (login, access, error, etc.)
+  // 1) your auth flow
   {
     path: 'auth',
-    loadChildren: () =>
-      import('./app/pages/auth/auth.routes')
-        .then(m => m.default)
+    loadChildren: () => import('./app/pages/auth/auth.routes').then(m => m.default)
   },
 
-  // 3) Main app shell (after you’ve logged in)
+  // 2) the protected shell
   {
-    path: 'app',
+    path: '',
     component: AppLayout,
+    canMatch: [ authGuard ],
     children: [
-      { path: '',                 component: Dashboard },
-      { path: 'invoices',         component: InvoiceComponent },
-      // fix typo: use “transactions” instead of “transacion”
-      { path: 'transactions',     component: TransactionsComponent },
-      { path: 'uikit',            loadChildren: () => import('./app/pages/uikit/uikit.routes').then(m => m.default) },
-      { path: 'documentation',    component: Documentation },
-      { path: 'pages',            loadChildren: () => import('./app/pages/pages.routes').then(m => m.default) }
+      // 2a) default child → dashboard
+      { path: '',          component: Dashboard },
+
+      // 2b) all your feature pages under the same prefix
+      { path: 'dashboard', component: Dashboard },
+      { path: 'invoices',  component: InvoiceComponent },
+      { path: 'transactions', component: TransactionsComponent },
+      {
+        path: 'uikit',
+        loadChildren: () => import('./app/pages/uikit/uikit.routes').then(m => m.default)
+      },
+      { path: 'documentation', component: Documentation },
+      {
+        path: 'pages',
+        loadChildren: () => import('./app/pages/pages.routes').then(m => m.default)
+      }
     ]
   },
 
-  // 4) stand-alone landing or notfound
-  { path: 'landing',          component: Landing },
-  { path: 'notfound',         component: Notfound },
+  // 3) stand-alone landing & 404
+  { path: 'landing',  component: Landing },
+  { path: 'notfound', component: Notfound },
 
-  // 5) Anything else → notfound
-  { path: '**',               redirectTo: 'notfound' }
+  // 4) anything else → 404
+  { path: '**', redirectTo: 'notfound' }
 ];

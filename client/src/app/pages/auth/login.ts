@@ -1,7 +1,6 @@
 // src/app/pages/auth/login.ts
 
 import { Component, OnInit, inject } from '@angular/core';
-import { CommonModule }               from '@angular/common';               // for *ngIf
 import { FormsModule }                from '@angular/forms';
 import { RouterModule, Router }       from '@angular/router';
 import { ButtonModule }               from 'primeng/button';
@@ -12,18 +11,18 @@ import { RippleModule }               from 'primeng/ripple';
 import { MessageService }             from 'primeng/api';
 import { AppFloatingConfigurator }    from '../../layout/component/app.floatingconfigurator';
 import { AuthService }                from '../service/auth.service';
+import { switchMap }                  from 'rxjs/operators';
 
 @Component({
   selector: 'app-login',
   standalone: true,
   imports: [
-    CommonModule,
-    FormsModule,
-    RouterModule,
     ButtonModule,
     CheckboxModule,
     InputTextModule,
     PasswordModule,
+    FormsModule,
+    RouterModule,
     RippleModule,
     AppFloatingConfigurator
   ],
@@ -33,15 +32,10 @@ import { AuthService }                from '../service/auth.service';
 
     <div class="bg-surface-50 dark:bg-surface-950 flex items-center justify-center min-h-screen min-w-[100vw] overflow-hidden">
       <div class="flex flex-col items-center justify-center">
-        <div
-          style="border-radius:56px; padding:0.3rem; background:linear-gradient(180deg, var(--primary-color) 10%, rgba(33,150,243,0) 30%)"
-        >
-          <div
-            class="w-full bg-surface-0 dark:bg-surface-900 py-20 px-8 sm:px-20"
-            style="border-radius:53px"
-          >
+        <div style="border-radius:56px; padding:0.3rem; background:linear-gradient(180deg, var(--primary-color) 10%, rgba(33,150,243,0) 30%)">
+          <div class="w-full bg-surface-0 dark:bg-surface-900 py-20 px-8 sm:px-20" style="border-radius:53px">
             <div class="text-center mb-8">
-              <!-- logo and heading SVG omitted for brevity -->
+              <!-- SVG logo omitted for brevity -->
               <div class="text-surface-900 dark:text-surface-0 text-3xl font-medium mb-4">
                 Welcome to PrimeLand!
               </div>
@@ -49,62 +43,38 @@ import { AuthService }                from '../service/auth.service';
             </div>
 
             <form (ngSubmit)="onSubmit()" class="space-y-6">
-              <!-- Step 1: credentials -->
-              <ng-container *ngIf="step === 1">
-                <div>
-                  <label for="email" class="block text-xl font-medium mb-2">Email</label>
-                  <input
-                    id="email"
-                    pInputText
-                    type="email"
-                    name="email"
-                    [(ngModel)]="email"
-                    placeholder="Email address"
-                    required
-                    class="w-full md:w-[30rem] mb-4"
-                  />
-                </div>
-                <div>
-                  <label for="password" class="block text-xl font-medium mb-2">Password</label>
-                  <p-password
-                    id="password"
-                    name="password"
-                    [(ngModel)]="password"
-                    placeholder="Password"
-                    [toggleMask]="true"
-                    [feedback]="false"
-                    class="w-full md:w-[30rem] mb-4"
-                  ></p-password>
-                </div>
-              </ng-container>
+              <label for="email1" class="block text-xl font-medium mb-2">Email</label>
+              <input
+                pInputText
+                id="email1"
+                type="email"
+                name="email"
+                [(ngModel)]="email"
+                placeholder="Email address"
+                required
+                class="w-full md:w-[30rem] mb-4"
+              />
 
-              <!-- Step 2: 2FA code -->
-              <ng-container *ngIf="step === 2">
-                <div>
-                  <label for="totp" class="block text-xl font-medium mb-2">2FA Code</label>
-                  <input
-                    id="totp"
-                    pInputText
-                    type="text"
-                    name="totp"
-                    [(ngModel)]="totp"
-                    maxlength="6"
-                    placeholder="Enter authentication code"
-                    required
-                    class="w-full md:w-[30rem] mb-4"
-                  />
-                </div>
-              </ng-container>
+              <label for="password1" class="block text-xl font-medium mb-2">Password</label>
+              <p-password
+                id="password1"
+                name="password"
+                [(ngModel)]="password"
+                placeholder="Password"
+                [toggleMask]="true"
+                [feedback]="false"
+                class="w-full md:w-[30rem] mb-4"
+              ></p-password>
 
-              <div class="flex items-center justify-between">
+              <div class="flex items-center justify-between mb-8">
                 <div class="flex items-center">
                   <p-checkbox
-                    [(ngModel)]="remember"
+                    [(ngModel)]="checked"
                     name="remember"
                     binary
                     class="mr-2"
                   ></p-checkbox>
-                  <label for="remember">Remember me</label>
+                  <label for="rememberme1">Remember me</label>
                 </div>
                 <a class="font-medium text-primary cursor-pointer">Forgot password?</a>
               </div>
@@ -112,7 +82,7 @@ import { AuthService }                from '../service/auth.service';
               <button
                 pButton
                 type="submit"
-                label="{{ step === 1 ? 'Sign In' : 'Verify 2FA' }}"
+                label="Sign In"
                 class="w-full"
               ></button>
             </form>
@@ -124,56 +94,44 @@ import { AuthService }                from '../service/auth.service';
   `
 })
 export class LoginComponent implements OnInit {
+  email: string    = '';
+  password: string = '';
+  checked: boolean = false;
+
   private auth   = inject(AuthService);
   private router = inject(Router);
   private msg    = inject(MessageService);
 
-  email     = '';
-  password  = '';
-  totp      = '';
-  remember  = false;
-  step      = 1; // 1 = credentials, 2 = 2FA
-
   ngOnInit() {}
 
   onSubmit() {
-    if (this.step === 1) {
-      this.auth.login(this.email, this.password).subscribe({
+    this.auth
+      .login(this.email, this.password)       // 1) POST /api/auth/login
+      .pipe(
+        switchMap(() => this.auth.status())   // 2) GET /api/auth/status
+      )
+      .subscribe({
         next: res => {
-          if (res.requires2FA) {
-            this.step = 2;
-            this.msg.add({
-              severity: 'info',
-              summary: '2FA Required',
-              detail: 'Enter the code from your authenticator app'
-            });
+          if (res.authenticated) {
+            this.router.navigate(['/app']);   // 3) only if authenticated=true
           } else {
-            this.router.navigate(['/']);
+            this.msg.add({
+              severity: 'error',
+              summary: 'Login failed',
+              detail: 'Could not establish session.'
+            });
           }
         },
-        error: (err: unknown) => {
-          const e = err as any;
+        error: (err: any) => {
           this.msg.add({
             severity: 'error',
             summary: 'Login Failed',
-            detail: e.error?.message || 'Invalid email or password'
+            detail: err.error?.message || 'Invalid email or password'
           });
         }
       });
-    } else {
-      this.auth.verify2FA(this.email, this.totp).subscribe({
-        next: () => this.router.navigate(['/']),
-        error: () => {
-          this.msg.add({
-            severity: 'error',
-            summary: '2FA Verification Failed',
-            detail: 'The code you entered is incorrect'
-          });
-        }
-      });
-    }
   }
 }
 
-// this export makes `import { Login } from './login'` work:
+// so `import { Login } from './login'` still works
 export { LoginComponent as Login };
