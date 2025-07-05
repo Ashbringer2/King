@@ -1,17 +1,14 @@
-// src/app/pages/auth/login.ts
-
 import { Component, OnInit, inject } from '@angular/core';
-import { FormsModule }                from '@angular/forms';
-import { RouterModule, Router }       from '@angular/router';
-import { ButtonModule }               from 'primeng/button';
-import { CheckboxModule }             from 'primeng/checkbox';
-import { InputTextModule }            from 'primeng/inputtext';
-import { PasswordModule }             from 'primeng/password';
-import { RippleModule }               from 'primeng/ripple';
-import { MessageService }             from 'primeng/api';
-import { AppFloatingConfigurator }    from '../../layout/component/app.floatingconfigurator';
-import { AuthService }                from '../service/auth.service';
-import { switchMap }                  from 'rxjs/operators';
+import { FormsModule } from '@angular/forms';
+import { RouterModule, Router } from '@angular/router';
+import { ButtonModule } from 'primeng/button';
+import { CheckboxModule } from 'primeng/checkbox';
+import { InputTextModule } from 'primeng/inputtext';
+import { PasswordModule } from 'primeng/password';
+import { RippleModule } from 'primeng/ripple';
+import { MessageService } from 'primeng/api';
+import { AppFloatingConfigurator } from '../../layout/component/app.floatingconfigurator';
+import { AuthService } from '../service/auth.service';
 
 @Component({
   selector: 'app-login',
@@ -26,7 +23,7 @@ import { switchMap }                  from 'rxjs/operators';
     RippleModule,
     AppFloatingConfigurator
   ],
-  providers: [ MessageService ],
+  providers: [MessageService],
   template: `
     <app-floating-configurator />
 
@@ -94,42 +91,29 @@ import { switchMap }                  from 'rxjs/operators';
   `
 })
 export class LoginComponent implements OnInit {
-  email: string    = '';
+  email: string = '';
   password: string = '';
   checked: boolean = false;
 
-  private auth   = inject(AuthService);
+  private auth = inject(AuthService);
   private router = inject(Router);
-  private msg    = inject(MessageService);
+  private msg = inject(MessageService);
 
   ngOnInit() {}
 
   onSubmit() {
-    this.auth
-      .login(this.email, this.password)       // 1) POST /api/auth/login
-      .pipe(
-        switchMap(() => this.auth.status())   // 2) GET /api/auth/status
-      )
-      .subscribe({
-        next: res => {
-          if (res.authenticated) {
-            this.router.navigate(['/app']);   // 3) only if authenticated=true
-          } else {
-            this.msg.add({
-              severity: 'error',
-              summary: 'Login failed',
-              detail: 'Could not establish session.'
-            });
-          }
-        },
-        error: (err: any) => {
-          this.msg.add({
-            severity: 'error',
-            summary: 'Login Failed',
-            detail: err.error?.message || 'Invalid email or password'
-          });
-        }
-      });
+    this.auth.login(this.email, this.password).subscribe({
+      next: () => {
+        this.router.navigate(['/app']);
+      },
+      error: (err: any) => {
+        this.msg.add({
+          severity: 'error',
+          summary: 'Login Failed',
+          detail: err.error?.message || 'Invalid email or password'
+        });
+      }
+    });
   }
 }
 

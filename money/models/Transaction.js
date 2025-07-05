@@ -1,15 +1,11 @@
-import { DataTypes } from 'sequelize';
+import mongoose from 'mongoose';
 
-const TransactionModel = (sequelize) =>
-  sequelize.define('Transaction', {
-    type:        { type: DataTypes.ENUM('income','expense','debit','credit'), allowNull: false },
-    amount:      { type: DataTypes.DECIMAL(10,2), allowNull: false },
-    date:        { type: DataTypes.DATEONLY,  allowNull: false },
-    description: { type: DataTypes.STRING },
-    invoiceId:   {
-      type: DataTypes.STRING, // Now free text
-      allowNull: true
-    },
-  });
+const transactionSchema = new mongoose.Schema({
+  type:        { type: String, required: true },
+  amount:      { type: Number, required: true },
+  date:        { type: Date, default: Date.now },
+  description: { type: String },
+  invoiceId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice' }
+}, { timestamps: true });
 
-export default TransactionModel;
+export default mongoose.model('Transaction', transactionSchema);
