@@ -1,4 +1,5 @@
 // server.js
+
 import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
@@ -6,10 +7,11 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
 import { connectDB } from './config/db.js';
-import authRoutes from './routes/auth.js';
-import userRoutes from './routes/users.js';
-import invoiceRoutes from './routes/invoices.js';
-import transactionRoutes from './routes/transactions.js';
+import authRoutes         from './routes/auth.js';
+import userRoutes         from './routes/users.js';
+import invoiceRoutes      from './routes/invoices.js';
+import transactionRoutes  from './routes/transactions.js';
+import typeRoutes         from './routes/types.js';         // ← new
 
 dotenv.config();
 
@@ -23,10 +25,11 @@ app.use(cors({
 app.use(express.json());
 
 // ─── ROUTES ───────────────────────────────────────────────────────────────────
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/invoices', invoiceRoutes);
+app.use('/api/auth',         authRoutes);
+app.use('/api/users',        userRoutes);
+app.use('/api/invoices',     invoiceRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/types',        typeRoutes);    // ← new
 
 // ─── STARTUP LOGIC ────────────────────────────────────────────────────────────
 async function startServer() {

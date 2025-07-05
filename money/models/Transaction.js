@@ -1,11 +1,21 @@
+// models/Transaction.js
 import mongoose from 'mongoose';
+const { Schema, model } = mongoose;
 
-const transactionSchema = new mongoose.Schema({
+const transactionSchema = new Schema({
   type:        { type: String, required: true },
   amount:      { type: Number, required: true },
-  date:        { type: Date, default: Date.now },
+  date:        { type: Date,   required: true },
   description: { type: String },
-  invoiceId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice' }
-}, { timestamps: true });
+  invoiceId:   { type: String },  // plain text now
+  createdAt:   { type: Date, default: Date.now },
+  updatedAt:   { type: Date, default: Date.now }
+});
 
-export default mongoose.model('Transaction', transactionSchema);
+// auto‐update `updatedAt`
+transactionSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
+});
+
+export default model('Transaction', transactionSchema);

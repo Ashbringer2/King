@@ -20,14 +20,20 @@ import * as XLSX from 'xlsx';
 registerLocaleData(localeDe);
 
 interface Transaction {
-  id?: number;
-  type: 'income' | 'expense' | 'debit' | 'credit';
+  id?: string;
+  type: string;            // now any string, matched to your dynamic types
   amount: number;
   date: Date;
   description?: string;
   invoiceId?: string;
   amountFormatted: string;
   dateFormatted: string;
+}
+
+interface TypeOption {
+  label: string;  // will show the TYPE NAME
+  value: string;  // will bind to form.type
+  icon:  string;  // pi pi-*
 }
 
 @Component({
@@ -50,7 +56,7 @@ interface Transaction {
     { provide: LOCALE_ID, useValue: 'de-DE' }
   ],
   template: `
-    <!-- Date-range dialog -->
+    <!-- Date-range dialog (unchanged) -->
     <p-dialog
       header="Select report date range"
       [(visible)]="showDialog"
@@ -109,7 +115,7 @@ interface Transaction {
       </div>
     </p-dialog>
 
-    <!-- Main content hidden until dialog closed -->
+    <!-- Main content -->
     <ng-container *ngIf="!showDialog">
       <div class="surface-section p-6">
         <h2 class="text-2xl font-semibold mb-4">
@@ -122,7 +128,7 @@ interface Transaction {
           ></button>
         </h2>
 
-        <!-- summary row -->
+        <!-- summary row (unchanged) -->
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <div
             *ngFor="let c of summaryCards"
@@ -137,45 +143,22 @@ interface Transaction {
           </div>
         </div>
 
-        <!-- action buttons -->
+        <!-- action buttons (unchanged) -->
         <div class="no-print mb-4 flex items-center">
-          <button
-            pButton
-            label="Add Transaction"
-            icon="pi pi-plus"
-            class="p-button-success"
-            (click)="startAdd()"
-          ></button>
-          <button
-            pButton
-            label="Export Excel"
-            icon="pi pi-file-excel"
-            class="p-button-success p-button-outlined ml-2"
-            (click)="exportExcel()"
-          ></button>
-          <button
-            pButton
-            label="Print Report"
-            icon="pi pi-print"
-            class="p-button-success p-button-outlined ml-2"
-            (click)="printReport()"
-          ></button>
+          <button pButton label="Add Transaction" icon="pi pi-plus" class="p-button-success" (click)="startAdd()"></button>
+          <button pButton label="Export Excel" icon="pi pi-file-excel" class="p-button-success p-button-outlined ml-2" (click)="exportExcel()"></button>
+          <button pButton label="Print Report" icon="pi pi-print" class="p-button-success p-button-outlined ml-2" (click)="printReport()"></button>
         </div>
 
-        <div
-          *ngIf="!showForm && transactions.length === 0"
-          class="text-center text-color-secondary mb-6 no-print"
-        >
+        <div *ngIf="!showForm && transactions.length === 0" class="text-center text-color-secondary mb-6 no-print">
           No transactions yet. Click <b>Add Transaction</b>.
         </div>
 
         <!-- form -->
-        <form
-          *ngIf="showForm"
-          (ngSubmit)="submitForm()"
-          class="surface-card p-4 mb-6 rounded-lg shadow-2 no-print"
-        >
+        <form *ngIf="showForm" (ngSubmit)="submitForm()" class="surface-card p-4 mb-6 rounded-lg shadow-2 no-print">
           <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+
+            <!-- TYPE DROPDOWN: updated templates -->
             <div>
               <label class="block mb-1">Type</label>
               <p-dropdown
@@ -184,15 +167,32 @@ interface Transaction {
                 name="type"
                 optionLabel="label"
                 optionValue="value"
+                placeholder="Select a type…"
                 class="w-full"
-              ></p-dropdown>
+                appendTo="body"
+              >
+                <ng-template let-item pTemplate="item">
+                  <div class="flex items-center gap-2">
+                    <i [class]="item.icon"></i>
+                    <span>{{ item.label }}</span>
+                  </div>
+                </ng-template>
+                <ng-template let-item pTemplate="value">
+                  <div class="flex items-center gap-2">
+                    <i [class]="item.icon"></i>
+                    <span>{{ item.label }}</span>
+                  </div>
+                </ng-template>
+              </p-dropdown>
             </div>
+
+            <!-- rest of the form unchanged -->
             <div>
               <label class="block mb-1">Amount</label>
               <p-inputNumber
                 [(ngModel)]="form.amount"
                 name="amount"
-                [mode]="'currency'"
+                mode="currency"
                 currency="EUR"
                 locale="de-DE"
                 [min]="0"
@@ -218,13 +218,7 @@ interface Transaction {
             </div>
             <div>
               <label class="block mb-1">Description</label>
-              <input
-                type="text"
-                pInputText
-                [(ngModel)]="form.description"
-                name="description"
-                class="w-full"
-              />
+              <input type="text" pInputText [(ngModel)]="form.description" name="description" class="w-full" />
             </div>
             <div>
               <label class="block mb-1">Invoice ID</label>
@@ -233,37 +227,20 @@ interface Transaction {
                 pInputText
                 [(ngModel)]="form.invoiceId"
                 name="invoiceId"
-                placeholder="Optional"
+                placeholder="Optional (e.g. 1247/S)"
                 class="w-full"
               />
             </div>
           </div>
+
           <div class="mt-4 flex justify-center gap-3">
-            <button
-              pButton
-              type="submit"
-              label="Save"
-              icon="pi pi-save"
-              class="p-button-success"
-            ></button>
-            <button
-              pButton
-              type="button"
-              label="Cancel"
-              icon="pi pi-times"
-              class="p-button-secondary"
-              (click)="cancelForm()"
-            ></button>
+            <button pButton type="submit" label="Save" icon="pi pi-save" class="p-button-success"></button>
+            <button pButton type="button" label="Cancel" icon="pi pi-times" class="p-button-secondary" (click)="cancelForm()"></button>
           </div>
         </form>
 
-        <!-- table -->
-        <p-table
-          [value]="transactions"
-          responsiveLayout="scroll"
-          [rowHover]="true"
-          [showGridlines]="true"
-        >
+        <!-- table and footer (unchanged) -->
+        <p-table [value]="transactions" responsiveLayout="scroll" [rowHover]="true" [showGridlines]="true">
           <ng-template pTemplate="header">
             <tr>
               <th>#</th>
@@ -284,24 +261,9 @@ interface Transaction {
               <td>{{ tx.description }}</td>
               <td>{{ tx.invoiceId }}</td>
               <td class="text-center flex justify-center gap-2 no-print">
-                <button
-                  pButton
-                  icon="pi pi-pencil"
-                  class="p-button-rounded p-button-warning"
-                  (click)="startEdit(tx)"
-                ></button>
-                <button
-                  pButton
-                  icon="pi pi-print"
-                  class="p-button-rounded p-button-info"
-                  (click)="printTransaction(tx)"
-                ></button>
-                <button
-                  pButton
-                  icon="pi pi-trash"
-                  class="p-button-rounded p-button-danger"
-                  (click)="deleteTransaction(tx)"
-                ></button>
+                <button pButton icon="pi pi-pencil" class="p-button-rounded p-button-warning" (click)="startEdit(tx)"></button>
+                <button pButton icon="pi pi-print" class="p-button-rounded p-button-info" (click)="printTransaction(tx)"></button>
+                <button pButton icon="pi pi-trash" class="p-button-rounded p-button-danger" (click)="deleteTransaction(tx)"></button>
               </td>
             </tr>
           </ng-template>
@@ -315,35 +277,29 @@ interface Transaction {
     </ng-container>
   `,
   styles: [
-    /* hide native number spinner arrows */
-    `
-    :host ::ng-deep input[type=number]::-webkit-inner-spin-button,
-    :host ::ng-deep input[type=number]::-webkit-outer-spin-button {
-      -webkit-appearance: none; margin: 0;
-    }
-    :host ::ng-deep input[type=number] { -moz-appearance: textfield; }
+    `:host ::ng-deep input[type=number]::-webkit-inner-spin-button,
+     :host ::ng-deep input[type=number]::-webkit-outer-spin-button {
+       -webkit-appearance: none; margin: 0;
+     }
+     :host ::ng-deep input[type=number] { -moz-appearance: textfield; }
     `,
-    /* Sakai dialog styling */
-    `
-    .sakai-dialog .p-dialog-content {
-      background: var(--sakai-surface);
-      color: var(--sakai-text);
-      padding: 2rem;
-      border-radius: 8px;
-    }
-    .sakai-preset-btn {
-      margin: 0.5rem;
-      opacity: 0.8;
-    }
-    .sakai-preset-btn.p-button-info {
-      opacity: 1;
-    }
+    ` .sakai-dialog .p-dialog-content {
+         background: var(--sakai-surface);
+         color: var(--sakai-text);
+         padding: 2rem;
+         border-radius: 8px;
+       }
+       .sakai-preset-btn { margin: 0.5rem; opacity: 0.8; }
+       .sakai-preset-btn.p-button-info { opacity: 1; }
     `
   ]
 })
 export class TransactionsComponent implements OnInit {
   showDialog = false;
   selectedPreset = 'This month';
+
+  // will be replaced by API load:
+  typeOptions: TypeOption[] = [];
 
   presets = [
     { label: 'Today',        icon: 'pi pi-calendar-times', calculate: () => this.rangeToday() },
@@ -361,14 +317,14 @@ export class TransactionsComponent implements OnInit {
 
   transactions: Transaction[] = [];
   showForm = false;
-  editingId: number | null = null;
+  editingId: string | null = null;
 
   form: any = {
-    type: 'expense',
-    amount: 0,
-    date: new Date(),
+    type:        '',
+    amount:      0,
+    date:        new Date(),
     description: '',
-    invoiceId: ''
+    invoiceId:   ''
   };
 
   summaryCards = [
@@ -379,13 +335,6 @@ export class TransactionsComponent implements OnInit {
     { label: 'Net Balance', value: '', icon: 'pi pi-calculator',    iconColor: 'text-gray-700',   borderClass: 'border-gray-500'  }
   ];
 
-  typeOptions = [
-    { label: 'Income',  value: 'income'  },
-    { label: 'Expense', value: 'expense' },
-    { label: 'Debit',   value: 'debit'   },
-    { label: 'Credit',  value: 'credit'  }
-  ];
-
   constructor(
     private api: ApiService,
     private toast: MessageService,
@@ -394,6 +343,21 @@ export class TransactionsComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    // 1) load your dynamic types
+    this.api.getTypes().subscribe({
+      next: res => {
+        this.typeOptions = res.data.map(t => ({
+          label: t.name, // show the TYPE NAME
+          value: t.name,
+          icon:  t.icon!
+        }));
+        // default form.type
+        this.form.type = this.typeOptions[0]?.value || '';
+      },
+      error: () => this.toast.add({ severity:'error', summary:'Error', detail:'Failed to load types.' })
+    });
+
+    // 2) date-range logic (unchanged)
     const qp = this.route.snapshot.queryParams;
     if (qp['from'] && qp['to']) {
       this.customFrom = new Date(qp['from']);
@@ -415,7 +379,6 @@ export class TransactionsComponent implements OnInit {
       const raw = event.originalEvent?.target || event.target;
       const inputEl = raw as HTMLInputElement;
       if (inputEl.setSelectionRange) {
-        // select all on focus/click
         inputEl.setSelectionRange(0, inputEl.value.length);
       }
     }, 0);
@@ -423,12 +386,12 @@ export class TransactionsComponent implements OnInit {
 
   exportExcel() {
     const data = this.transactions.map(tx => ({
-      ID:        tx.id,
-      Type:      tx.type,
-      Amount:    tx.amountFormatted,
-      Date:      tx.dateFormatted,
-      Description: tx.description,
-      InvoiceID: tx.invoiceId
+      ID:         tx.id,
+      Type:       tx.type,
+      Amount:     tx.amountFormatted,
+      Date:       tx.dateFormatted,
+      Description:tx.description,
+      InvoiceID:  tx.invoiceId
     }));
     const ws: XLSX.WorkSheet = XLSX.utils.json_to_sheet(data, {
       header: ['ID','Type','Amount','Date','Description','InvoiceID']
@@ -438,15 +401,12 @@ export class TransactionsComponent implements OnInit {
     XLSX.writeFile(wb, 'transactions-report.xlsx');
   }
 
-  printReport() {
-    window.print();
-  }
+  printReport() { window.print(); }
 
   selectPreset(p: any) {
     this.selectedPreset = p.label;
-    if (!p.calculate) {
-      this.customActive = true;
-    } else {
+    if (!p.calculate) { this.customActive = true; }
+    else {
       this.customActive = false;
       const [f, t] = p.calculate!();
       this.confirmRange(f, t);
@@ -467,127 +427,98 @@ export class TransactionsComponent implements OnInit {
     this.api.getTransactions().subscribe({
       next: (res: any) => {
         const filtered = res.data
-          .map((tx: any) => ({ ...tx, _dt: new Date(tx.createdAt || tx.date) }))
+          .map((tx: any) => ({ ...tx, _dt: new Date(tx.date) }))
           .filter((tx: any) => tx._dt >= from && tx._dt <= to);
 
         this.transactions = filtered.map((tx: any) => {
-          const dt = tx._dt;
+          const dt  = tx._dt;
           const amt = Number(tx.amount);
           return {
-            ...tx,
-            amount: amt,
-            amountFormatted: amt.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }),
-            date: dt,
-            dateFormatted: dt.toLocaleString('de-DE', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })
+            id:             tx._id,
+            type:           tx.type,
+            amount:         amt,
+            date:           dt,
+            description:    tx.description,
+            invoiceId:      tx.invoiceId || '',
+            amountFormatted:amt.toLocaleString('de-DE',{ style:'currency',currency:'EUR' }),
+            dateFormatted:  dt.toLocaleString('de-DE',{
+                              day:'2-digit',month:'2-digit',year:'numeric',
+                              hour:'2-digit',minute:'2-digit'
+                            })
           } as Transaction;
         });
+
         this.calculateTotals();
       },
-      error: () => this.toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to load transactions.' })
+      error: () => this.toast.add({ severity:'error', summary:'Error', detail:'Failed to load transactions.' })
     });
   }
 
-  private rangeToday(): [Date, Date] {
-    const d = new Date(); return [startOfDay(d), endOfDay(d)];
-  }
-  private rangeYesterday(): [Date, Date] {
-    const d = new Date(); d.setDate(d.getDate() - 1);
-    return [startOfDay(d), endOfDay(d)];
-  }
-  private rangeLastNDays(n: number): [Date, Date] {
-    const e = new Date(), s = new Date(); s.setDate(e.getDate() - n + 1);
-    return [startOfDay(s), endOfDay(e)];
-  }
-  private rangeThisMonth(): [Date, Date] {
-    const n = new Date();
-    return [new Date(n.getFullYear(), n.getMonth(), 1), endOfDay(new Date())];
-  }
-  private rangeLastMonth(): [Date, Date] {
-    const n = new Date();
-    const s = new Date(n.getFullYear(), n.getMonth() - 1, 1);
-    const e = new Date(n.getFullYear(), n.getMonth(), 0);
-    return [startOfDay(s), endOfDay(e)];
-  }
-  private rangeYearToDate(): [Date, Date] {
-    const n = new Date();
-    return [new Date(n.getFullYear(), 0, 1), endOfDay(n)];
-  }
+  private rangeToday(): [Date, Date]       { const d=new Date(); return [startOfDay(d), endOfDay(d)]; }
+  private rangeYesterday(): [Date, Date]   { const d=new Date(); d.setDate(d.getDate()-1); return [startOfDay(d), endOfDay(d)]; }
+  private rangeLastNDays(n:number): [Date,Date] { const e=new Date(), s=new Date(); s.setDate(e.getDate()-n+1); return [startOfDay(s), endOfDay(e)]; }
+  private rangeThisMonth(): [Date,Date]    { const n=new Date(); return [new Date(n.getFullYear(),n.getMonth(),1), endOfDay(new Date())]; }
+  private rangeLastMonth(): [Date,Date]    { const n=new Date(); const s=new Date(n.getFullYear(),n.getMonth()-1,1); const e=new Date(n.getFullYear(),n.getMonth(),0); return [startOfDay(s), endOfDay(e)]; }
+  private rangeYearToDate(): [Date,Date]   { const n=new Date(); return [new Date(n.getFullYear(),0,1), endOfDay(n)]; }
 
   startAdd() {
     this.editingId = null;
-    this.form = { type: 'expense', amount: 0, date: new Date(), description: '', invoiceId: '' };
+    this.form = { type:'', amount:0, date:new Date(), description:'', invoiceId:'' };
     this.showForm = true;
   }
 
   startEdit(tx: Transaction) {
     this.editingId = tx.id!;
-    this.form = {
-      type: tx.type,
-      amount: tx.amount,
-      date: tx.date,
-      description: tx.description,
-      invoiceId: tx.invoiceId
-    };
+    this.form = { type:tx.type, amount:tx.amount, date:tx.date, description:tx.description, invoiceId:tx.invoiceId };
     this.showForm = true;
   }
 
   submitForm() {
     const payload = {
-      type: this.form.type,
-      amount: this.form.amount,
-      date: this.form.date.toISOString(),
+      type:        this.form.type,
+      amount:      this.form.amount,
+      date:        this.form.date.toISOString(),
       description: this.form.description,
-      invoiceId: this.form.invoiceId || undefined
+      invoiceId:   this.form.invoiceId || undefined
     };
 
-    const obs = this.editingId != null
+    const obs = this.editingId
       ? this.api.updateTransaction(this.editingId, payload)
       : this.api.createTransaction(payload);
 
     obs.subscribe({
       next: () => {
-        const action = this.editingId != null ? 'Updated' : 'Added';
-        this.toast.add({ severity: 'success', summary: action, detail: `Transaction ${action.toLowerCase()}.` });
+        const action = this.editingId ? 'Updated' : 'Added';
+        this.toast.add({ severity:'success', summary:action, detail:`Transaction ${action.toLowerCase()}.` });
         this.showForm = false;
         this.applyFilter(this.customFrom, this.customTo);
       },
-      error: (err: any) => this.toast.add({ severity: 'error', summary: 'Error', detail: err?.error?.error || 'Save failed.' })
+      error: (err: any) => this.toast.add({ severity:'error', summary:'Error', detail:err?.error?.error || 'Save failed.' })
     });
   }
 
-  printTransaction(_tx: Transaction) {
-    window.print();
-  }
+  printTransaction(_tx: Transaction) { window.print(); }
 
   deleteTransaction(tx: Transaction) {
     if (!tx.id) return;
     this.api.deleteTransaction(tx.id).subscribe({
       next: () => {
-        this.toast.add({ severity: 'success', summary: 'Deleted', detail: 'Transaction removed.' });
+        this.toast.add({ severity:'success', summary:'Deleted', detail:'Transaction removed.' });
         this.applyFilter(this.customFrom, this.customTo);
       },
-      error: (err: any) => this.toast.add({ severity: 'error', summary: 'Error', detail: err?.error?.error || 'Delete failed.' })
+      error: (err: any) => this.toast.add({ severity:'error', summary:'Error', detail:err?.error?.error || 'Delete failed.' })
     });
   }
 
-  cancelForm() {
-    this.showForm = false;
-  }
+  cancelForm() { this.showForm = false; }
 
   private calculateTotals() {
     const sums = ['income','expense','debit','credit']
-      .map(t => this.transactions.filter(x => x.type === t).reduce((s,x) => s + x.amount, 0));
-    const [inc, exp, deb, cr] = sums;
+      .map(t => this.transactions.filter(x=>x.type===t).reduce((s,x)=>s+x.amount,0));
+    const [inc,exp,deb,cr] = sums;
     const net = inc + cr - exp - deb;
-    [inc, exp, deb, cr, net].forEach((v,i) => {
-      this.summaryCards[i].value =
-        v.toLocaleString('de-DE',{ style:'currency', currency:'EUR' });
+    [inc,exp,deb,cr,net].forEach((v,i)=>{
+      this.summaryCards[i].value = v.toLocaleString('de-DE',{ style:'currency',currency:'EUR' });
     });
   }
 }

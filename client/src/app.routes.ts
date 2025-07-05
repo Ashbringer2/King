@@ -8,6 +8,7 @@ import { Landing } from './app/pages/landing/landing';
 import { Notfound } from './app/pages/notfound/notfound';
 import { InvoiceComponent } from './app/pages/invoices/invoices';
 import { TransactionsComponent } from './app/pages/transaction/transactions';
+import { TypesComponent } from './app/pages/type/types.component';
 
 export const appRoutes: Routes = [
   // 1) Auth module (login/register)
@@ -27,6 +28,7 @@ export const appRoutes: Routes = [
       { path: 'dashboard',   component: Dashboard },
       { path: 'invoices',    component: InvoiceComponent },
       { path: 'transactions',component: TransactionsComponent },
+      { path: 'types',        component: TypesComponent },
       {
         path: 'uikit',
         loadChildren: () =>

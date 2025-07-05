@@ -4,7 +4,7 @@
 git add .
 
 # Commit changes with a default message
-git commit -m "Auto commit"
+git commit -m "Auto commit 2"
 
 # Push changes to the main branch
 git push origin main

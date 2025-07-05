@@ -18,7 +18,7 @@ export interface Invoice {
 }
 
 export interface Transaction {
-  id?: number;
+  id?: string;
   type: 'income' | 'expense' | 'debit' | 'credit';
   amount: number;
   date: string;
@@ -28,7 +28,17 @@ export interface Transaction {
   updatedAt?: string;
 }
 
-/* ------ Service ------ */
+export interface TransactionType {
+  /** MongoDB ObjectId string */
+  _id?: string;
+  /** Machine name, e.g. 'income' */
+  name: string;
+  /** Human label, e.g. 'Income' */
+  label: string;
+  /** Optional icon class, e.g. 'pi pi-wallet' */
+  icon?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private http = inject(HttpClient);
@@ -79,11 +89,24 @@ export class ApiService {
   createTransaction(tx: Partial<Transaction>): Observable<Transaction> {
     return this.http.post<Transaction>('/api/transactions', tx);
   }
-  /** ✏️ New: Update an existing transaction */
-  updateTransaction(id: number, tx: Partial<Transaction>): Observable<Transaction> {
+  updateTransaction(id: string, tx: Partial<Transaction>): Observable<Transaction> {
     return this.http.put<Transaction>(`/api/transactions/${id}`, tx);
   }
-  deleteTransaction(id: number): Observable<void> {
+  deleteTransaction(id: string): Observable<void> {
     return this.http.delete<void>(`/api/transactions/${id}`);
+  }
+
+  /* Transaction Types… */
+  getTypes(): Observable<{ data: TransactionType[] }> {
+    return this.http.get<{ data: TransactionType[] }>('/api/types');
+  }
+  createType(type: Partial<TransactionType>): Observable<TransactionType> {
+    return this.http.post<TransactionType>('/api/types', type);
+  }
+  updateType(id: string, type: Partial<TransactionType>): Observable<TransactionType> {
+    return this.http.put<TransactionType>(`/api/types/${id}`, type);
+  }
+  deleteType(id: string): Observable<void> {
+    return this.http.delete<void>(`/api/types/${id}`);
   }
 }

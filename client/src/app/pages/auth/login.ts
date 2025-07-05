@@ -32,7 +32,6 @@ import { AuthService } from '../service/auth.service';
         <div style="border-radius:56px; padding:0.3rem; background:linear-gradient(180deg, var(--primary-color) 10%, rgba(33,150,243,0) 30%)">
           <div class="w-full bg-surface-0 dark:bg-surface-900 py-20 px-8 sm:px-20" style="border-radius:53px">
             <div class="text-center mb-8">
-              <!-- SVG logo omitted for brevity -->
               <div class="text-surface-900 dark:text-surface-0 text-3xl font-medium mb-4">
                 Welcome to PrimeLand!
               </div>
@@ -95,16 +94,17 @@ export class LoginComponent implements OnInit {
   password: string = '';
   checked: boolean = false;
 
-  private auth = inject(AuthService);
+  private auth   = inject(AuthService);
   private router = inject(Router);
-  private msg = inject(MessageService);
+  private msg    = inject(MessageService);
 
   ngOnInit() {}
 
   onSubmit() {
     this.auth.login(this.email, this.password).subscribe({
       next: () => {
-        this.router.navigate(['/app']);
+        // Redirect to the dashboard instead of /app
+        this.router.navigate(['/dashboard']);
       },
       error: (err: any) => {
         this.msg.add({
