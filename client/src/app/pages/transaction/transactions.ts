@@ -145,9 +145,9 @@ interface TypeOption {
 
         <!-- action buttons (unchanged) -->
         <div class="no-print mb-4 flex items-center">
-          <button pButton label="Add Transaction" icon="pi pi-plus" class="p-button-success" (click)="startAdd()"></button>
-          <button pButton label="Export Excel" icon="pi pi-file-excel" class="p-button-success p-button-outlined ml-2" (click)="exportExcel()"></button>
-          <button pButton label="Print Report" icon="pi pi-print" class="p-button-success p-button-outlined ml-2" (click)="printReport()"></button>
+          <button pButton type="button" icon="pi pi-plus" class="p-button-success" (click)="startAdd()">Add Transaction</button>
+          <button pButton type="button" icon="pi pi-file-excel" class="p-button-success p-button-outlined ml-2" (click)="exportExcel()">Export Excel</button>
+          <button pButton type="button" icon="pi pi-print" class="p-button-success p-button-outlined ml-2" (click)="printReport()">Print Report</button>
         </div>
 
         <div *ngIf="!showForm && transactions.length === 0" class="text-center text-color-secondary mb-6 no-print">

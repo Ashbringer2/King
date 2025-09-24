@@ -10,6 +10,9 @@ import { InvoiceComponent } from './app/pages/invoices/invoices';
 import { TransactionsComponent } from './app/pages/transaction/transactions';
 import { TypesComponent } from './app/pages/type/types.component';
 
+// 👇 import the standalone editor
+import { PranimiEditorComponent } from './app/pages/pranimi/pranimi-editor.component';
+
 export const appRoutes: Routes = [
   // 1) Auth module (login/register)
   {
@@ -22,13 +25,19 @@ export const appRoutes: Routes = [
   {
     path: '',
     component: AppLayout,
-    canMatch: [AuthGuard],    // ← class‐based guard now imported correctly
+    canMatch: [AuthGuard],
     children: [
-      { path: '',            component: Dashboard },
-      { path: 'dashboard',   component: Dashboard },
-      { path: 'invoices',    component: InvoiceComponent },
-      { path: 'transactions',component: TransactionsComponent },
+      { path: '',             component: Dashboard },
+      { path: 'dashboard',    component: Dashboard },
+      { path: 'invoices',     component: InvoiceComponent },
+      { path: 'transactions', component: TransactionsComponent },
       { path: 'types',        component: TypesComponent },
+
+      // 👇 Pranimet
+      { path: 'pranimet',       redirectTo: 'pranimet/new', pathMatch: 'full' },
+      { path: 'pranimet/new',   component: PranimiEditorComponent, title: 'Pranim i ri' },
+      { path: 'pranimet/:id',   component: PranimiEditorComponent, title: 'Pranim' },
+
       {
         path: 'uikit',
         loadChildren: () =>
